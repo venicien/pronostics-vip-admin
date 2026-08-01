@@ -1,4 +1,4 @@
-import { getAdminKey, clearAdminKey } from './api.js';
+import { api, getAdminKey, clearAdminKey } from './api.js';
 import { renderLogin } from './views/login.js';
 import { renderContent } from './views/content.js';
 import { renderBanners } from './views/banners.js';
@@ -43,10 +43,20 @@ function navigate(root, routeKey) {
   routes[routeKey].render(root.querySelector('#main-view'));
 }
 
-function boot() {
+async function boot() {
   const root = document.getElementById('app');
+  const storedKey = getAdminKey();
 
-  if (!getAdminKey()) {
+  if (!storedKey) {
+    renderLogin(root, () => boot());
+    return;
+  }
+
+  root.innerHTML = `<div class="login-screen"><div class="login-box"><p>Vérification…</p></div></div>`;
+  const isValid = await api.validateAdminKey(storedKey);
+
+  if (!isValid) {
+    clearAdminKey();
     renderLogin(root, () => boot());
     return;
   }

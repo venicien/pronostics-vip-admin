@@ -19,14 +19,31 @@ async function request(path, { method = 'GET', body } = {}) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) {
     clearAdminKey();
-    window.location.reload();
-    throw new Error('Session admin invalide');
+    throw new Error('unauthorized');
   }
   if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
   return data;
 }
 
+/**
+ * Vérifie qu'une clé donne réellement accès au backend, en appelant un
+ * endpoint protégé léger. Ne stocke la clé que si elle est valide.
+ * Retourne true/false, ne lève jamais d'exception (utilisable directement
+ * dans un `if`).
+ */
+async function validateAdminKey(key) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+      headers: { 'X-Admin-Key': key },
+    });
+    return res.ok;
+  } catch (e) {
+    return false; // erreur réseau : on considère la clé comme non validée
+  }
+}
+
 export const api = {
+  validateAdminKey,
   listContent: () => request('/api/admin/content'),
   createContent: (payload) => request('/api/admin/content', { method: 'POST', body: payload }),
   updateContent: (id, payload) => request(`/api/admin/content/${id}`, { method: 'PATCH', body: payload }),

@@ -9,11 +9,15 @@ const TEMPLATES = {
   kit_reseaux: 'Kit Réseaux Sociaux (TikTok)',
 };
 
-function fieldsForTemplate(type) {
+function esc(value) {
+  return (value ?? '').toString().replace(/"/g, '&quot;');
+}
+
+function fieldsForTemplate(type, data = {}) {
   const common = `
     <div class="field full">
       <label>Titre</label>
-      <input type="text" name="title" required />
+      <input type="text" name="title" required value="${esc(data.title)}" />
     </div>
   `;
 
@@ -21,56 +25,61 @@ function fieldsForTemplate(type) {
     return (
       common +
       `
-      <div class="field"><label>Match</label><input type="text" name="match_label" placeholder="PSG vs OM" /></div>
-      <div class="field"><label>Cote</label><input type="number" step="0.01" name="cote" /></div>
-      <div class="field"><label>Confiance (1-5)</label><input type="number" min="1" max="5" name="niveau_confiance" /></div>
-      ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel' })}
-      <div class="field full"><label>Analyse</label><textarea name="analyse"></textarea></div>
+      <div class="field"><label>Match</label><input type="text" name="match_label" placeholder="PSG vs OM" value="${esc(data.match_label)}" /></div>
+      <div class="field"><label>Cote</label><input type="number" step="0.01" name="cote" value="${esc(data.cote)}" /></div>
+      <div class="field"><label>Confiance (1-5)</label><input type="number" min="1" max="5" name="niveau_confiance" value="${esc(data.niveau_confiance)}" /></div>
+      ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel', currentUrl: data.image_url || '' })}
+      <div class="field full"><label>Analyse</label><textarea name="analyse">${esc(data.analyse)}</textarea></div>
     `
     );
   }
 
   if (type === 'bilan') {
+    const sealed = !!data.is_sealed;
+    const status = data.result_status || 'en_attente';
     return (
       common +
       `
       <div class="field"><label>Résultat</label>
-        <select name="result_status">
-          <option value="en_attente">En attente</option>
-          <option value="valide">Validé ✅</option>
-          <option value="perdu">Perdu ❌</option>
+        <select name="result_status" ${sealed ? 'disabled' : ''}>
+          <option value="en_attente" ${status === 'en_attente' ? 'selected' : ''}>En attente</option>
+          <option value="valide" ${status === 'valide' ? 'selected' : ''}>Validé ✅</option>
+          <option value="perdu" ${status === 'perdu' ? 'selected' : ''}>Perdu ❌</option>
         </select>
       </div>
-      <div class="field"><label>ROI (%)</label><input type="number" step="0.01" name="roi_percent" /></div>
-      <div class="field full"><label>Commentaire</label><textarea name="body"></textarea></div>
+      <div class="field"><label>ROI (%)</label><input type="number" step="0.01" name="roi_percent" value="${esc(data.roi_percent)}" ${sealed ? 'disabled' : ''} /></div>
+      <div class="field full"><label>Commentaire</label><textarea name="body">${esc(data.body)}</textarea></div>
       <div class="field full" style="color:var(--gold);font-size:12px;">
-        ⚠️ Une fois enregistré en "Validé" ou "Perdu", ce bilan est scellé définitivement (garantie de transparence, §5.3) — plus aucune modification possible ensuite.
+        ${sealed
+          ? '🔒 Ce bilan est scellé (résultat déjà validé/perdu) : le résultat et le ROI ne sont plus modifiables, mais le commentaire reste éditable.'
+          : '⚠️ Une fois enregistré en "Validé" ou "Perdu", ce bilan est scellé définitivement (garantie de transparence, §5.3) — plus aucune modification du résultat possible ensuite.'}
       </div>
     `
     );
   }
 
   if (type === 'article') {
-    return common + `<div class="field full"><label>Contenu</label><textarea name="body" style="min-height:160px;"></textarea></div>`;
+    return common + `<div class="field full"><label>Contenu</label><textarea name="body" style="min-height:160px;">${esc(data.body)}</textarea></div>`;
   }
 
   // kit_reseaux
   return (
     common +
     `
-    ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel 9:16' })}
-    <div class="field full"><label>Script texte prêt à poster</label><textarea name="body"></textarea></div>
+    ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel 9:16', currentUrl: data.image_url || '' })}
+    <div class="field full"><label>Script texte prêt à poster</label><textarea name="body">${esc(data.body)}</textarea></div>
   `
   );
 }
 
-function destinationCheckboxes() {
+function destinationCheckboxes(data = {}) {
+  const c = (key) => (data[key] ? 'checked' : '');
   return `
     <div class="checkbox-group">
-      <label><input type="checkbox" name="publish_mini_app" /> Mini App / Site</label>
-      <label><input type="checkbox" name="publish_public_channel" /> Telegram Public</label>
-      <label><input type="checkbox" name="publish_vip_channel" /> Telegram VIP</label>
-      <label><input type="checkbox" name="publish_social_kit" /> Kit Réseaux (TikTok)</label>
+      <label><input type="checkbox" name="publish_mini_app" ${c('publish_mini_app')} /> Mini App / Site</label>
+      <label><input type="checkbox" name="publish_public_channel" ${c('publish_public_channel')} /> Telegram Public</label>
+      <label><input type="checkbox" name="publish_vip_channel" ${c('publish_vip_channel')} /> Telegram VIP</label>
+      <label><input type="checkbox" name="publish_social_kit" ${c('publish_social_kit')} /> Kit Réseaux (TikTok)</label>
     </div>
   `;
 }
@@ -97,10 +106,11 @@ export async function renderContent(root) {
       <div id="dynamic-fields" class="full" style="display:contents;"></div>
       <div class="field full">
         <label>Publier vers</label>
-        ${destinationCheckboxes()}
+        <div id="destinations-container">${destinationCheckboxes()}</div>
       </div>
-      <div class="full">
-        <button type="submit" class="btn-primary">Créer le brouillon</button>
+      <div class="full" style="display:flex;gap:10px;">
+        <button type="submit" class="btn-primary" id="submit-btn">Créer le brouillon</button>
+        <button type="button" class="btn-secondary" id="cancel-edit-btn" style="display:none;">Annuler la modification</button>
       </div>
     </form>
 
@@ -110,15 +120,43 @@ export async function renderContent(root) {
 
   const select = root.querySelector('#template-select');
   const dynamicFields = root.querySelector('#dynamic-fields');
+  const destinationsContainer = root.querySelector('#destinations-container');
   const form = root.querySelector('#content-form');
+  const submitBtn = root.querySelector('#submit-btn');
+  const cancelBtn = root.querySelector('#cancel-edit-btn');
 
-  function refreshFields() {
-    dynamicFields.innerHTML = fieldsForTemplate(select.value);
+  let editingId = null; // null = mode création, sinon id du contenu en cours d'édition
+
+  function refreshFields(data = {}) {
+    dynamicFields.innerHTML = fieldsForTemplate(select.value, data);
     dynamicFields.style.display = 'contents';
     wireImageUploadField(dynamicFields, 'image_url');
   }
+
+  function enterEditMode(item) {
+    editingId = item.id;
+    select.value = item.type;
+    select.disabled = true; // on ne change pas le type d'un contenu existant
+    refreshFields(item);
+    destinationsContainer.innerHTML = destinationCheckboxes(item);
+    submitBtn.textContent = 'Enregistrer les modifications';
+    cancelBtn.style.display = 'inline-block';
+    form.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function exitEditMode() {
+    editingId = null;
+    select.disabled = false;
+    form.reset();
+    refreshFields();
+    destinationsContainer.innerHTML = destinationCheckboxes();
+    submitBtn.textContent = 'Créer le brouillon';
+    cancelBtn.style.display = 'none';
+  }
+
   refreshFields();
-  select.addEventListener('change', refreshFields);
+  select.addEventListener('change', () => refreshFields());
+  cancelBtn.addEventListener('click', exitEditMode);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -128,25 +166,28 @@ export async function renderContent(root) {
     for (const [key, value] of formData.entries()) {
       if (['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit'].includes(key)) {
         payload[key] = true;
-      } else if (['cote', 'roi_percent'].includes(key)) {
-        payload[key] = value ? Number(value) : null;
-      } else if (key === 'niveau_confiance') {
+      } else if (['cote', 'roi_percent', 'niveau_confiance'].includes(key)) {
         payload[key] = value ? Number(value) : null;
       } else {
         payload[key] = value;
       }
     }
-    // Les checkboxes non cochées n'apparaissent pas dans FormData : on les force à false.
     for (const key of ['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit']) {
       if (!(key in payload)) payload[key] = false;
     }
 
     try {
-      await api.createContent(payload);
-      form.reset();
-      refreshFields();
+      if (editingId) {
+        await api.updateContent(editingId, payload);
+        showToast('✅ Contenu modifié.');
+        exitEditMode();
+      } else {
+        await api.createContent(payload);
+        form.reset();
+        refreshFields();
+        showToast('✅ Contenu créé.');
+      }
       loadTable();
-      showToast('✅ Contenu créé.');
     } catch (err) {
       showToast(`Erreur : ${err.message}`);
     }
@@ -175,7 +216,10 @@ export async function renderContent(root) {
                   ${c.is_sealed ? '<span class="badge sealed">Scellé</span>' : ''}
                   ${c.published_at ? '<span class="badge valide">Publié</span>' : '<span class="badge attente">Brouillon</span>'}
                 </td>
-                <td><button class="btn-secondary publish-btn" data-id="${c.id}">Publier</button></td>
+                <td style="white-space:nowrap;">
+                  <button class="btn-secondary edit-btn" data-id="${c.id}">Modifier</button>
+                  <button class="btn-secondary publish-btn" data-id="${c.id}">Publier</button>
+                </td>
               </tr>`
               )
               .join('')}
@@ -192,6 +236,13 @@ export async function renderContent(root) {
           } catch (err) {
             showToast(`Erreur : ${err.message}`);
           }
+        });
+      });
+
+      tableEl.querySelectorAll('.edit-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const item = content.find((c) => c.id === btn.dataset.id);
+          if (item) enterEditMode(item);
         });
       });
     } catch (err) {

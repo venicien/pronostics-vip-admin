@@ -80,6 +80,7 @@ function destinationCheckboxes(data = {}) {
       <label><input type="checkbox" name="publish_public_channel" ${c('publish_public_channel')} /> Telegram Public</label>
       <label><input type="checkbox" name="publish_vip_channel" ${c('publish_vip_channel')} /> Telegram VIP</label>
       <label><input type="checkbox" name="publish_social_kit" ${c('publish_social_kit')} /> Kit Réseaux (TikTok)</label>
+      <label><input type="checkbox" name="publish_facebook" ${c('publish_facebook')} /> 🤖 Facebook (légende + visuel générés par IA)</label>
     </div>
   `;
 }
@@ -164,7 +165,7 @@ export async function renderContent(root) {
     const payload = { type: select.value };
 
     for (const [key, value] of formData.entries()) {
-      if (['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit'].includes(key)) {
+      if (['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit', 'publish_facebook'].includes(key)) {
         payload[key] = true;
       } else if (['cote', 'roi_percent', 'niveau_confiance'].includes(key)) {
         payload[key] = value ? Number(value) : null;
@@ -172,7 +173,7 @@ export async function renderContent(root) {
         payload[key] = value;
       }
     }
-    for (const key of ['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit']) {
+    for (const key of ['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit', 'publish_facebook']) {
       if (!(key in payload)) payload[key] = false;
     }
 

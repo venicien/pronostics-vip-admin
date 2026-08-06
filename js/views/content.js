@@ -231,8 +231,10 @@ export async function renderContent(root) {
       tableEl.querySelectorAll('.publish-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
           try {
-            const { destinations } = await api.publishContent(btn.dataset.id);
-            showToast(`✅ Publié sur : ${destinations.join(', ') || 'aucune destination'}`);
+            const { destinations, failures } = await api.publishContent(btn.dataset.id);
+            const ok = destinations.length ? `✅ Publié sur : ${destinations.join(', ')}` : '';
+            const ko = failures?.length ? `⚠️ Échec : ${failures.join(', ')}` : '';
+            showToast([ok, ko].filter(Boolean).join(' — ') || 'Aucune destination cochée');
             loadTable();
           } catch (err) {
             showToast(`Erreur : ${err.message}`);

@@ -9,7 +9,7 @@ export async function renderSettings(root) {
   `;
 
   const container = root.querySelector('#settings-form-container');
-  const MM_OPERATORS = ['Orange Money', 'MTN Mobile Money', 'Wave', 'Moov Money'];
+  const MM_OPERATORS = ['Orange Money', 'MTN Mobile Money', 'Airtel Money', 'Moov Money'];
 
   try {
     const { settings } = await api.getSettings();

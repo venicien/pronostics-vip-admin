@@ -49,6 +49,7 @@ function fieldsForTemplate(type, data = {}) {
       </div>
       <div class="field"><label>ROI (%)</label><input type="number" step="0.01" name="roi_percent" value="${esc(data.roi_percent)}" ${sealed ? 'disabled' : ''} /></div>
       <div class="field full"><label>Commentaire</label><textarea name="body">${esc(data.body)}</textarea></div>
+      ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel (capture du bilan, preuve, etc.)', currentUrl: data.image_url || '' })}
       <div class="field full" style="color:var(--gold);font-size:12px;">
         ${sealed
           ? '🔒 Ce bilan est scellé (résultat déjà validé/perdu) : le résultat et le ROI ne sont plus modifiables, mais le commentaire reste éditable.'

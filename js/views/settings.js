@@ -10,6 +10,7 @@ export async function renderSettings(root) {
 
   const container = root.querySelector('#settings-form-container');
   const MM_OPERATORS = ['Orange Money', 'MTN Mobile Money', 'Airtel Money', 'Moov Money'];
+  const CRYPTO_NETWORKS = ['USDT (TRC20)', 'USDT (BEP20)', 'Bitcoin (BTC)', 'TON'];
 
   try {
     const { settings } = await api.getSettings();
@@ -18,6 +19,12 @@ export async function renderSettings(root) {
       mmAccounts = JSON.parse(settings.mobile_money_accounts || '{}');
     } catch (e) {
       mmAccounts = {};
+    }
+    let cryptoAddresses = {};
+    try {
+      cryptoAddresses = JSON.parse(settings.crypto_manual_addresses || '{}');
+    } catch (e) {
+      cryptoAddresses = {};
     }
 
     container.innerHTML = `
@@ -43,6 +50,17 @@ export async function renderSettings(root) {
           </div>`
         ).join('')}
 
+        <div class="full" style="margin-top:8px;">
+          <strong>Adresses Crypto (validation manuelle — affichées au client avant l'envoi)</strong>
+        </div>
+        ${CRYPTO_NETWORKS.map(
+          (net) => `
+          <div class="field">
+            <label>${net}</label>
+            <input type="text" name="crypto_${net}" placeholder="Ton adresse de réception ${net}" value="${cryptoAddresses[net] || ''}" />
+          </div>`
+        ).join('')}
+
         <div class="full"><button type="submit" class="btn-primary">Enregistrer</button></div>
       </form>
     `;
@@ -56,12 +74,16 @@ export async function renderSettings(root) {
       const mobileMoneyAccounts = Object.fromEntries(
         MM_OPERATORS.map((op) => [op, data[`mm_${op}`] || '']).filter(([, v]) => v)
       );
+      const cryptoManualAddresses = Object.fromEntries(
+        CRYPTO_NETWORKS.map((net) => [net, data[`crypto_${net}`] || '']).filter(([, v]) => v)
+      );
       try {
         await Promise.all([
           api.updateSetting('logo_url', data.logo_url),
           api.updateSetting('bankroll_percent', Number(data.bankroll_percent)),
           api.updateSetting('support_contact', data.support_contact),
           api.updateSetting('mobile_money_accounts', JSON.stringify(mobileMoneyAccounts)),
+          api.updateSetting('crypto_manual_addresses', JSON.stringify(cryptoManualAddresses)),
         ]);
         showToast('✅ Réglages enregistrés.');
       } catch (err) {

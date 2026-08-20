@@ -22,14 +22,40 @@ function fieldsForTemplate(type, data = {}) {
   `;
 
   if (type === 'pronostic_unique' || type === 'pronostic_combine') {
+    const status = data.result_status || 'en_attente';
+    
+    // Format de la date pour le champ datetime-local
+    let dateValue = '';
+    if (data.event_date) {
+      const d = new Date(data.event_date);
+      dateValue = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
+    
     return (
       common +
       `
       <div class="field"><label>Match</label><input type="text" name="match_label" placeholder="PSG vs OM" value="${esc(data.match_label)}" /></div>
+      <div class="field"><label>Date et heure du match</label><input type="datetime-local" name="event_date" value="${dateValue}" required /></div>
       <div class="field"><label>Cote</label><input type="number" step="0.01" name="cote" value="${esc(data.cote)}" /></div>
       <div class="field"><label>Confiance (1-5)</label><input type="number" min="1" max="5" name="niveau_confiance" value="${esc(data.niveau_confiance)}" /></div>
+      
+      <div class="field"><label>Résultat du pronostic</label>
+        <select name="result_status">
+          <option value="en_attente" ${status === 'en_attente' ? 'selected' : ''}>En attente ⏳</option>
+          <option value="gagne" ${status === 'gagne' ? 'selected' : ''}>Gagné ✅</option>
+          <option value="perdu" ${status === 'perdu' ? 'selected' : ''}>Perdu ❌</option>
+          <option value="rembourse" ${status === 'rembourse' ? 'selected' : ''}>Remboursé 🔄</option>
+          <option value="annule" ${status === 'annule' ? 'selected' : ''}>Annulé 🚫</option>
+        </select>
+      </div>
+      <div class="field"><label>Unités gagnées/perdues</label><input type="number" step="0.01" name="result_units" value="${esc(data.result_units)}" placeholder="ex: 1.5 ou -1" /></div>
+      
       ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel', currentUrl: data.image_url || '' })}
       <div class="field full"><label>Analyse</label><textarea name="analyse">${esc(data.analyse)}</textarea></div>
+      
+      <div class="field full" style="color:var(--gold);font-size:12px;">
+        🔒 L'heure du match servira de verrou automatique. Une fois le match commencé, aucune modification ne sera possible pour garantir l'intégrité de l'historique.
+      </div>
     `
     );
   }
@@ -87,7 +113,14 @@ function destinationCheckboxes(data = {}) {
 }
 
 function resultBadgeHtml(status) {
-  const map = { valide: ['VALIDÉ', 'valide'], perdu: ['PERDU', 'perdu'], en_attente: ['—', 'attente'] };
+  const map = { 
+    valide: ['VALIDÉ', 'valide'], 
+    gagne: ['GAGNÉ', 'valide'], 
+    perdu: ['PERDU', 'perdu'], 
+    rembourse: ['REMBOURSÉ', 'attente'],
+    annule: ['ANNULÉ', 'attente'],
+    en_attente: ['—', 'attente'] 
+  };
   const [label, cls] = map[status] || map.en_attente;
   return `<span class="badge ${cls}">${label}</span>`;
 }
@@ -168,8 +201,11 @@ export async function renderContent(root) {
     for (const [key, value] of formData.entries()) {
       if (['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit', 'publish_facebook'].includes(key)) {
         payload[key] = true;
-      } else if (['cote', 'roi_percent', 'niveau_confiance'].includes(key)) {
+      } else if (['cote', 'roi_percent', 'niveau_confiance', 'result_units'].includes(key)) {
         payload[key] = value ? Number(value) : null;
+      } else if (key === 'event_date' && value) {
+        // Convertir la date locale en UTC pour Supabase
+        payload[key] = new Date(value).toISOString();
       } else {
         payload[key] = value;
       }
@@ -213,7 +249,7 @@ export async function renderContent(root) {
               <tr data-id="${c.id}">
                 <td>${TEMPLATES[c.type] || c.type}</td>
                 <td>${c.title}</td>
-                <td>${c.type === 'bilan' ? resultBadgeHtml(c.result_status) : '—'}</td>
+                <td>${(c.type === 'bilan' || c.type === 'pronostic_unique' || c.type === 'pronostic_combine') ? resultBadgeHtml(c.result_status) : '—'}</td>
                 <td>
                   ${c.is_sealed ? '<span class="badge sealed">Scellé</span>' : ''}
                   ${c.published_at ? '<span class="badge valide">Publié</span>' : '<span class="badge attente">Brouillon</span>'}

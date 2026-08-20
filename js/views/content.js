@@ -155,6 +155,13 @@ export async function renderContent(root) {
   root.innerHTML = `
     <h1>Contenu</h1>
     <div class="subtitle">Créer un pronostic, un bilan, un article ou un kit réseaux, et choisir où le publier.</div>
+    <div class="compliance-callout">
+      <strong>Checklist avant publication</strong>
+      <span>✓ Ne jamais promettre un gain garanti</span>
+      <span>✓ Vérifier compétition, date/heure et statut de chaque sélection</span>
+      <span>✓ Publier les résultats réels en vert/rouge dès qu'ils sont connus</span>
+      <span>✓ Ne publier que des visuels dont tu as les droits</span>
+    </div>
 
     <div class="field" style="max-width:320px;margin-bottom:14px;">
       <label>Type de contenu</label>

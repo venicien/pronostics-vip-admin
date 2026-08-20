@@ -59,6 +59,20 @@ button { font-family: var(--font-body); cursor: pointer; border: none; }
 .main { flex: 1; padding: 28px 36px; max-width: 1000px; }
 .main h1 { font-size: 22px; margin-bottom: 4px; }
 .subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+.compliance-callout {
+  display: grid;
+  gap: 5px;
+  background: rgba(228,179,72,0.08);
+  border: 1px solid rgba(228,179,72,0.28);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: -10px 0 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.compliance-callout strong { color: var(--gold); font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.compliance-callout span { color: var(--text); }
 
 /* ---------------- FORM ---------------- */
 .form-grid {

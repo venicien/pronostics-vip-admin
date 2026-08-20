@@ -48,6 +48,9 @@ export const api = {
   createContent: (payload) => request('/api/admin/content', { method: 'POST', body: payload }),
   updateContent: (id, payload) => request(`/api/admin/content/${id}`, { method: 'PATCH', body: payload }),
   publishContent: (id) => request(`/api/admin/content/${id}/publish`, { method: 'POST' }),
+  
+  getComments: (contentId) => request(`/api/admin/content/${contentId}/comments`),
+  deleteComment: (commentId) => request(`/api/admin/comments/${commentId}`, { method: 'DELETE' }),
 
   listBanners: () => request('/api/admin/banners'),
   createBanner: (payload) => request('/api/admin/banners', { method: 'POST', body: payload }),

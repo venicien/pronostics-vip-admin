@@ -484,6 +484,7 @@ export async function renderContent(root) {
                   ${c.published_at ? '<span class="badge valide">Publié</span>' : '<span class="badge attente">Brouillon</span>'}
                 </td>
                 <td style="white-space:nowrap;">
+                  <button class="btn-secondary comments-btn" data-id="${c.id}" title="Gérer les commentaires">💬</button>
                   <button class="btn-secondary edit-btn" data-id="${c.id}">Modifier</button>
                   <button class="btn-secondary publish-btn" data-id="${c.id}">Publier</button>
                 </td>
@@ -514,8 +515,75 @@ export async function renderContent(root) {
           if (item) enterEditMode(item);
         });
       });
+
+      tableEl.querySelectorAll('.comments-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          showCommentsManager(btn.dataset.id);
+        });
+      });
     } catch (err) {
       tableEl.innerHTML = `<div class="empty-state">Impossible de charger le contenu.</div>`;
+    }
+  }
+
+  async function showCommentsManager(contentId) {
+    const overlay = document.createElement('div');
+    overlay.className = 'lightbox open';
+    overlay.style.alignItems = 'center';
+    
+    overlay.innerHTML = `
+      <div style="background: var(--surface); padding: 20px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+        <h3 style="margin-bottom: 15px;">Modération des commentaires</h3>
+        <div id="comments-list-admin" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
+          <div class="empty-state">Chargement...</div>
+        </div>
+        <button class="btn-secondary" style="margin-top: 15px;" id="close-comments-selector">Fermer</button>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    overlay.querySelector('#close-comments-selector').addEventListener('click', () => {
+      overlay.remove();
+    });
+    
+    try {
+      const { comments } = await api.getComments(contentId);
+      const listDiv = overlay.querySelector('#comments-list-admin');
+      
+      if (!comments || comments.length === 0) {
+        listDiv.innerHTML = '<div class="empty-state">Aucun commentaire pour ce contenu.</div>';
+        return;
+      }
+      
+      listDiv.innerHTML = comments.map(c => `
+        <div class="comment-item-admin" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">
+              ${c.author_name} - ${new Date(c.created_at).toLocaleString()}
+            </div>
+            <div style="font-size: 14px;">${c.body.replace(/</g, '&lt;')}</div>
+          </div>
+          <button class="btn-secondary delete-comment-btn" data-id="${c.id}" style="color: var(--red); padding: 4px 8px; font-size: 12px;">Supprimer</button>
+        </div>
+      `).join('');
+      
+      listDiv.querySelectorAll('.delete-comment-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Voulez-vous vraiment supprimer ce commentaire ?')) {
+            try {
+              await api.deleteComment(btn.dataset.id);
+              btn.closest('.comment-item-admin').remove();
+              showToast('Commentaire supprimé');
+            } catch (err) {
+              showToast('Erreur : ' + err.message);
+            }
+          }
+        });
+      });
+      
+    } catch (err) {
+      overlay.querySelector('#comments-list-admin').innerHTML = '<div class="empty-state" style="color: var(--red);">Erreur de chargement</div>';
     }
   }
 

@@ -23,6 +23,7 @@ function fieldsForTemplate(type, data = {}) {
 
   if (type === 'pronostic_unique' || type === 'pronostic_combine') {
     const status = data.result_status || 'en_attente';
+    const isCombine = type === 'pronostic_combine';
     
     // Format de la date pour le champ datetime-local
     let dateValue = '';
@@ -31,13 +32,28 @@ function fieldsForTemplate(type, data = {}) {
       dateValue = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
     
+    // Si c'est un combiné, on cache les champs "match_label" et "event_date" principaux 
+    // car ils seront gérés par les sélections multiples.
+    const hideSingleMatch = isCombine ? 'display: none;' : '';
+    
     return (
       common +
       `
-      <div class="field"><label>Match</label><input type="text" name="match_label" placeholder="PSG vs OM" value="${esc(data.match_label)}" /></div>
-      <div class="field"><label>Date et heure du match</label><input type="datetime-local" name="event_date" value="${dateValue}" required /></div>
-      <div class="field"><label>Cote</label><input type="number" step="0.01" name="cote" value="${esc(data.cote)}" /></div>
+      <div class="field" style="${hideSingleMatch}"><label>Match</label><input type="text" name="match_label" placeholder="PSG vs OM" value="${esc(data.match_label)}" /></div>
+      <div class="field" style="${hideSingleMatch}"><label>Date et heure du match</label><input type="datetime-local" name="event_date" value="${dateValue}" ${!isCombine ? 'required' : ''} /></div>
+      <div class="field"><label>Cote Totale</label><input type="number" step="0.01" name="cote" value="${esc(data.cote)}" /></div>
       <div class="field"><label>Confiance (1-5)</label><input type="number" min="1" max="5" name="niveau_confiance" value="${esc(data.niveau_confiance)}" /></div>
+      
+      <div class="field full" id="selections-container">
+        <label>Sélections (Matchs du pronostic)</label>
+        <div id="selections-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;">
+          <!-- Les sélections seront injectées ici par JS -->
+        </div>
+        <button type="button" class="btn-secondary" id="add-selection-btn" style="font-size: 12px; padding: 6px 12px;">+ Ajouter un match</button>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+          Les logos doivent être uploadés localement (via le bouton image).
+        </div>
+      </div>
       
       <div class="field"><label>Résultat du pronostic</label>
         <select name="result_status">
@@ -162,10 +178,139 @@ export async function renderContent(root) {
 
   let editingId = null; // null = mode création, sinon id du contenu en cours d'édition
 
+  let currentSelections = [];
+
+  function renderSelections() {
+    const list = document.getElementById('selections-list');
+    if (!list) return;
+    
+    list.innerHTML = currentSelections.map((sel, i) => {
+      // Format date
+      let dateVal = '';
+      if (sel.event_date) {
+        const d = new Date(sel.event_date);
+        dateVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      }
+      
+      return \`
+        <div class="selection-item" data-index="\${i}" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 10px; border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong style="font-size: 12px; color: var(--gold);">Match \${i + 1}</strong>
+            <button type="button" class="remove-selection-btn" data-index="\${i}" style="background: none; color: var(--red); font-size: 12px;">✖ Retirer</button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div><label style="font-size: 11px;">Compétition</label><input type="text" class="sel-comp" value="\${esc(sel.competition)}" style="padding: 6px; font-size: 12px;" /></div>
+            <div><label style="font-size: 11px;">Date/Heure</label><input type="datetime-local" class="sel-date" value="\${dateVal}" style="padding: 6px; font-size: 12px;" /></div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px;">Équipe 1</label>
+              <input type="text" class="sel-t1" value="\${esc(sel.team1_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
+              \${imageUploadFieldHtml({ name: 'sel_t1_logo_' + i, label: 'Logo', currentUrl: sel.team1_logo_url || '' })}
+            </div>
+            <div>
+              <label style="font-size: 11px;">Équipe 2</label>
+              <input type="text" class="sel-t2" value="\${esc(sel.team2_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
+              \${imageUploadFieldHtml({ name: 'sel_t2_logo_' + i, label: 'Logo', currentUrl: sel.team2_logo_url || '' })}
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div style="grid-column: span 2;"><label style="font-size: 11px;">Pronostic</label><input type="text" class="sel-label" value="\${esc(sel.selection_label)}" placeholder="ex: Victoire PSG" style="padding: 6px; font-size: 12px;" /></div>
+            <div><label style="font-size: 11px;">Cote</label><input type="number" step="0.01" class="sel-cote" value="\${esc(sel.cote)}" style="padding: 6px; font-size: 12px;" /></div>
+          </div>
+          
+          <div style="margin-top: 10px;">
+            <label style="font-size: 11px;">Résultat</label>
+            <select class="sel-status" style="padding: 6px; font-size: 12px;">
+              <option value="en_attente" \${sel.result_status === 'en_attente' ? 'selected' : ''}>En attente ⏳</option>
+              <option value="gagne" \${sel.result_status === 'gagne' ? 'selected' : ''}>Gagné ✅</option>
+              <option value="perdu" \${sel.result_status === 'perdu' ? 'selected' : ''}>Perdu ❌</option>
+              <option value="rembourse" \${sel.result_status === 'rembourse' ? 'selected' : ''}>Remboursé 🔄</option>
+              <option value="annule" \${sel.result_status === 'annule' ? 'selected' : ''}>Annulé 🚫</option>
+            </select>
+          </div>
+        </div>
+      \`;
+    }).join('');
+    
+    // Ré-attacher les uploaders d'images
+    currentSelections.forEach((_, i) => {
+      wireImageUploadField(list, 'sel_t1_logo_' + i);
+      wireImageUploadField(list, 'sel_t2_logo_' + i);
+    });
+    
+    // Attacher les events de suppression
+    list.querySelectorAll('.remove-selection-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.target.dataset.index, 10);
+        saveSelectionsState();
+        currentSelections.splice(idx, 1);
+        renderSelections();
+      });
+    });
+  }
+
+  function saveSelectionsState() {
+    const list = document.getElementById('selections-list');
+    if (!list) return;
+    
+    const items = list.querySelectorAll('.selection-item');
+    currentSelections = Array.from(items).map(item => {
+      const i = item.dataset.index;
+      const t1LogoInput = item.querySelector(\`input[name="sel_t1_logo_\${i}"]\`);
+      const t2LogoInput = item.querySelector(\`input[name="sel_t2_logo_\${i}"]\`);
+      
+      let eventDate = item.querySelector('.sel-date').value;
+      if (eventDate) {
+        eventDate = new Date(eventDate).toISOString();
+      }
+      
+      return {
+        competition: item.querySelector('.sel-comp').value,
+        event_date: eventDate,
+        team1_name: item.querySelector('.sel-t1').value,
+        team1_logo_url: t1LogoInput ? t1LogoInput.value : '',
+        team2_name: item.querySelector('.sel-t2').value,
+        team2_logo_url: t2LogoInput ? t2LogoInput.value : '',
+        selection_label: item.querySelector('.sel-label').value,
+        cote: item.querySelector('.sel-cote').value ? Number(item.querySelector('.sel-cote').value) : null,
+        result_status: item.querySelector('.sel-status').value
+      };
+    });
+  }
+
   function refreshFields(data = {}) {
     dynamicFields.innerHTML = fieldsForTemplate(select.value, data);
     dynamicFields.style.display = 'contents';
     wireImageUploadField(dynamicFields, 'image_url');
+    
+    if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {
+      currentSelections = data.selections || [];
+      // Si c'est un prono unique sans sélections mais avec match_label, on pré-remplit
+      if (currentSelections.length === 0 && data.match_label) {
+        currentSelections.push({
+          match_label: data.match_label,
+          event_date: data.event_date,
+          selection_label: data.title || '',
+          cote: data.cote,
+          result_status: data.result_status || 'en_attente'
+        });
+      }
+      
+      renderSelections();
+      
+      const addBtn = document.getElementById('add-selection-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          saveSelectionsState();
+          currentSelections.push({ result_status: 'en_attente' });
+          renderSelections();
+        });
+      }
+    }
   }
 
   function enterEditMode(item) {
@@ -212,6 +357,18 @@ export async function renderContent(root) {
     }
     for (const key of ['publish_mini_app', 'publish_public_channel', 'publish_vip_channel', 'publish_social_kit', 'publish_facebook']) {
       if (!(key in payload)) payload[key] = false;
+    }
+    
+    if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {
+      saveSelectionsState();
+      payload.selections = currentSelections;
+      
+      // Nettoyer le payload des champs de sélection injectés par formData
+      Object.keys(payload).forEach(key => {
+        if (key.startsWith('sel_t1_logo_') || key.startsWith('sel_t2_logo_')) {
+          delete payload[key];
+        }
+      });
     }
 
     try {

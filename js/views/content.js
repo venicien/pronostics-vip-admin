@@ -209,48 +209,48 @@ export async function renderContent(root) {
         dateVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       }
       
-      return \`
-        <div class="selection-item" data-index="\${i}" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 10px; border-radius: 8px;">
+      return `
+        <div class="selection-item" data-index="${i}" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 10px; border-radius: 8px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <strong style="font-size: 12px; color: var(--gold);">Match \${i + 1}</strong>
-            <button type="button" class="remove-selection-btn" data-index="\${i}" style="background: none; color: var(--red); font-size: 12px;">✖ Retirer</button>
+            <strong style="font-size: 12px; color: var(--gold);">Match ${i + 1}</strong>
+            <button type="button" class="remove-selection-btn" data-index="${i}" style="background: none; color: var(--red); font-size: 12px;">✖ Retirer</button>
           </div>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-            <div><label style="font-size: 11px;">Compétition</label><input type="text" class="sel-comp" value="\${esc(sel.competition)}" style="padding: 6px; font-size: 12px;" /></div>
-            <div><label style="font-size: 11px;">Date/Heure</label><input type="datetime-local" class="sel-date" value="\${dateVal}" style="padding: 6px; font-size: 12px;" /></div>
+            <div><label style="font-size: 11px;">Compétition</label><input type="text" class="sel-comp" value="${esc(sel.competition)}" style="padding: 6px; font-size: 12px;" /></div>
+            <div><label style="font-size: 11px;">Date/Heure</label><input type="datetime-local" class="sel-date" value="${dateVal}" style="padding: 6px; font-size: 12px;" /></div>
           </div>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
             <div>
               <label style="font-size: 11px;">Équipe 1</label>
-              <input type="text" class="sel-t1" value="\${esc(sel.team1_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
-              \${imageUploadFieldHtml({ name: 'sel_t1_logo_' + i, label: 'Logo', currentUrl: sel.team1_logo_url || '' })}
+              <input type="text" class="sel-t1" value="${esc(sel.team1_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
+              ${imageUploadFieldHtml({ name: 'sel_t1_logo_' + i, label: 'Logo', currentUrl: sel.team1_logo_url || '' })}
             </div>
             <div>
               <label style="font-size: 11px;">Équipe 2</label>
-              <input type="text" class="sel-t2" value="\${esc(sel.team2_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
-              \${imageUploadFieldHtml({ name: 'sel_t2_logo_' + i, label: 'Logo', currentUrl: sel.team2_logo_url || '' })}
+              <input type="text" class="sel-t2" value="${esc(sel.team2_name)}" placeholder="Nom" style="padding: 6px; font-size: 12px; margin-bottom: 4px;" />
+              ${imageUploadFieldHtml({ name: 'sel_t2_logo_' + i, label: 'Logo', currentUrl: sel.team2_logo_url || '' })}
             </div>
           </div>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-            <div style="grid-column: span 2;"><label style="font-size: 11px;">Pronostic</label><input type="text" class="sel-label" value="\${esc(sel.selection_label)}" placeholder="ex: Victoire PSG" style="padding: 6px; font-size: 12px;" /></div>
-            <div><label style="font-size: 11px;">Cote</label><input type="number" step="0.01" class="sel-cote" value="\${esc(sel.cote)}" style="padding: 6px; font-size: 12px;" /></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div><label style="font-size: 11px;">Intitulé du pronostic</label><input type="text" class="sel-label" value="${esc(sel.selection_label)}" style="padding: 6px; font-size: 12px;" /></div>
+            <div><label style="font-size: 11px;">Cote</label><input type="number" step="0.01" class="sel-cote" value="${sel.cote || ''}" style="padding: 6px; font-size: 12px;" /></div>
           </div>
           
-          <div style="margin-top: 10px;">
+          <div>
             <label style="font-size: 11px;">Résultat</label>
-            <select class="sel-status" style="padding: 6px; font-size: 12px;">
-              <option value="en_attente" \${sel.result_status === 'en_attente' ? 'selected' : ''}>En attente ⏳</option>
-              <option value="gagne" \${sel.result_status === 'gagne' ? 'selected' : ''}>Gagné ✅</option>
-              <option value="perdu" \${sel.result_status === 'perdu' ? 'selected' : ''}>Perdu ❌</option>
-              <option value="rembourse" \${sel.result_status === 'rembourse' ? 'selected' : ''}>Remboursé 🔄</option>
-              <option value="annule" \${sel.result_status === 'annule' ? 'selected' : ''}>Annulé 🚫</option>
+            <select class="sel-status" style="padding: 6px; font-size: 12px; width: 100%;">
+              <option value="en_attente" ${sel.result_status === 'en_attente' ? 'selected' : ''}>En attente</option>
+              <option value="gagne" ${sel.result_status === 'gagne' ? 'selected' : ''}>Gagné</option>
+              <option value="perdu" ${sel.result_status === 'perdu' ? 'selected' : ''}>Perdu</option>
+              <option value="rembourse" ${sel.result_status === 'rembourse' ? 'selected' : ''}>Remboursé</option>
+              <option value="annule" ${sel.result_status === 'annule' ? 'selected' : ''}>Annulé</option>
             </select>
           </div>
         </div>
-      \`;
+      `;
     }).join('');
     
     // Ré-attacher les uploaders d'images
@@ -277,8 +277,8 @@ export async function renderContent(root) {
     const items = list.querySelectorAll('.selection-item');
     currentSelections = Array.from(items).map(item => {
       const i = item.dataset.index;
-      const t1LogoInput = item.querySelector(\`input[name="sel_t1_logo_\${i}"]\`);
-      const t2LogoInput = item.querySelector(\`input[name="sel_t2_logo_\${i}"]\`);
+      const t1LogoInput = item.querySelector(`input[name="sel_t1_logo_${i}"]`);
+      const t2LogoInput = item.querySelector(`input[name="sel_t2_logo_${i}"]`);
       
       let eventDate = item.querySelector('.sel-date').value;
       if (eventDate) {

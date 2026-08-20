@@ -467,7 +467,7 @@ export async function renderContent(root) {
       }
       tableEl.innerHTML = `
         <table>
-          <thead><tr><th>Type</th><th>Titre</th><th>Résultat</th><th>Statut</th><th></th></tr></thead>
+          <thead><tr><th>Type</th><th>Titre</th><th>Résultat</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
           <tbody>
             ${content
               .map(
@@ -476,6 +476,9 @@ export async function renderContent(root) {
                 <td>${TEMPLATES[c.type] || c.type}</td>
                 <td>${c.title}</td>
                 <td>${(c.type === 'bilan' || c.type === 'pronostic_unique' || c.type === 'pronostic_combine') ? resultBadgeHtml(c.result_status) : '—'}</td>
+                <td style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">
+                  ${c.engagement ? `👍 ${c.engagement.likes_count || 0} &nbsp; 👎 ${c.engagement.dislikes_count || 0} &nbsp; ★ ${c.engagement.favorites_count || 0}` : '—'}
+                </td>
                 <td>
                   ${c.is_sealed ? '<span class="badge sealed">Scellé</span>' : ''}
                   ${c.published_at ? '<span class="badge valide">Publié</span>' : '<span class="badge attente">Brouillon</span>'}

@@ -82,6 +82,16 @@ function fieldsForTemplate(type, data = {}) {
     return (
       common +
       `
+      <div class="field full">
+        <label>Pronostic lié (Optionnel)</label>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" name="linked_pronostic_id" placeholder="ID du pronostic (UUID)" value="${esc(data.linked_pronostic_id)}" style="flex: 1;" />
+          <button type="button" class="btn-secondary" id="select-prono-btn" style="white-space: nowrap;">Sélectionner...</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+          Si renseigné, ce bilan sera rattaché à ce pronostic. S'il est vide, c'est un bilan indépendant.
+        </div>
+      </div>
       <div class="field"><label>Résultat</label>
         <select name="result_status" ${sealed ? 'disabled' : ''}>
           <option value="en_attente" ${status === 'en_attente' ? 'selected' : ''}>En attente</option>
@@ -282,10 +292,69 @@ export async function renderContent(root) {
     });
   }
 
+  let allPronostics = [];
+
+  async function loadPronosticsForSelection() {
+    try {
+      const res = await fetch('/api/admin/content?type=pronostic');
+      const data = await res.json();
+      allPronostics = data.content.filter(c => c.type === 'pronostic_unique' || c.type === 'pronostic_combine');
+    } catch (e) {
+      console.error('Erreur chargement pronostics', e);
+    }
+  }
+
+  function showPronosticSelector() {
+    const overlay = document.createElement('div');
+    overlay.className = 'lightbox open';
+    overlay.style.alignItems = 'center';
+    
+    const content = `
+      <div style="background: var(--surface); padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+        <h3 style="margin-bottom: 15px;">Sélectionner un pronostic</h3>
+        <div style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
+          ${allPronostics.map(p => `
+            <div class="prono-select-item" data-id="${p.id}" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+              <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">${new Date(p.created_at).toLocaleDateString()} - ${p.type === 'pronostic_combine' ? 'Combiné' : 'Simple'}</div>
+              <div style="font-weight: bold;">${p.title}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">${p.match_label || ''}</div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-secondary" style="margin-top: 15px;" id="close-prono-selector">Annuler</button>
+      </div>
+    `;
+    
+    overlay.innerHTML = content;
+    document.body.appendChild(overlay);
+    
+    overlay.querySelectorAll('.prono-select-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const input = document.querySelector('input[name="linked_pronostic_id"]');
+        if (input) input.value = item.dataset.id;
+        overlay.remove();
+      });
+    });
+    
+    overlay.querySelector('#close-prono-selector').addEventListener('click', () => {
+      overlay.remove();
+    });
+  }
+
   function refreshFields(data = {}) {
     dynamicFields.innerHTML = fieldsForTemplate(select.value, data);
     dynamicFields.style.display = 'contents';
     wireImageUploadField(dynamicFields, 'image_url');
+    
+    if (select.value === 'bilan') {
+      const btn = document.getElementById('select-prono-btn');
+      if (btn) {
+        btn.addEventListener('click', async () => {
+          if (allPronostics.length === 0) await loadPronosticsForSelection();
+          showPronosticSelector();
+        });
+      }
+    }
     
     if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {
       currentSelections = data.selections || [];

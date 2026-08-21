@@ -88,7 +88,13 @@ function fieldsForTemplate(type, data = {}) {
       <div class="field"><label>Unités gagnées/perdues</label><input type="number" step="0.01" name="result_units" value="${esc(data.result_units)}" placeholder="ex: 1.5 ou -1" /></div>
       
       ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel', currentUrl: data.image_url || '' })}
-      <div class="field full"><label>Analyse</label><textarea name="analyse">${esc(data.analyse)}</textarea></div>
+      <div class="field full">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Analyse
+          <button type="button" class="btn-secondary" id="btn-ai-analyse" style="font-size:12px;padding:4px 8px;">🤖 Générer l'analyse</button>
+        </label>
+        <textarea name="analyse">${esc(data.analyse)}</textarea>
+      </div>
       
       <div class="field full" style="color:var(--gold);font-size:12px;">
         🔒 L'heure du match servira de verrou automatique. Une fois le match commencé, aucune modification ne sera possible pour garantir l'intégrité de l'historique.
@@ -110,7 +116,13 @@ function fieldsForTemplate(type, data = {}) {
         <button type="button" class="btn-secondary" id="add-bulletin-match-btn" style="font-size:12px;padding:6px 12px;">+ Ajouter un match</button>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Les logos locaux sont prioritaires. La date et l'heure sont obligatoires pour chaque match.</div>
       </div>
-      <div class="field full"><label>Note / légende facultative</label><textarea name="body" placeholder="Contexte ou commentaire du bulletin">${esc(bulletin.body)}</textarea></div>
+      <div class="field full">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Note / légende facultative
+          <button type="button" class="btn-secondary" id="btn-ai-note" style="font-size:12px;padding:4px 8px;">🤖 Générer la note</button>
+        </label>
+        <textarea name="body" placeholder="Contexte ou commentaire du bulletin">${esc(bulletin.body)}</textarea>
+      </div>
       ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel Bulletin', currentUrl: bulletin.image_url || '' })}
       <div class="field full" style="color:var(--gold);font-size:12px;">Le visuel reprend la composition du Bulletin de référence : score central, logos, résultat vert/rouge et date/heure de chaque match.</div>
     `
@@ -141,7 +153,13 @@ function fieldsForTemplate(type, data = {}) {
         </select>
       </div>
       <div class="field"><label>ROI (%)</label><input type="number" step="0.01" name="roi_percent" value="${esc(data.roi_percent)}" ${sealed ? 'disabled' : ''} /></div>
-      <div class="field full"><label>Commentaire</label><textarea name="body">${esc(data.body)}</textarea></div>
+      <div class="field full">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Commentaire
+          <button type="button" class="btn-secondary" id="btn-ai-commentaire" style="font-size:12px;padding:4px 8px;">🤖 Générer le commentaire</button>
+        </label>
+        <textarea name="body">${esc(data.body)}</textarea>
+      </div>
       ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel (capture du bilan, preuve, etc.)', currentUrl: data.image_url || '' })}
       <div class="field full" style="color:var(--gold);font-size:12px;">
         ${sealed
@@ -169,7 +187,13 @@ function fieldsForTemplate(type, data = {}) {
     common +
     `
     ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel 9:16', currentUrl: data.image_url || '' })}
-    <div class="field full"><label>Script texte prêt à poster</label><textarea name="body">${esc(data.body)}</textarea></div>
+    <div class="field full">
+      <label style="display:flex;justify-content:space-between;align-items:center;">
+        Script texte prêt à poster
+        <button type="button" class="btn-secondary" id="btn-ai-legende" style="font-size:12px;padding:4px 8px;">🤖 Générer la légende</button>
+      </label>
+      <textarea name="body">${esc(data.body)}</textarea>
+    </div>
   `
   );
 }
@@ -496,26 +520,47 @@ export async function renderContent(root) {
       }
     }
 
-    if (select.value === 'article') {
-      const btnAi = document.getElementById('btn-ai-article');
+    // Helper pour attacher l'IA
+    function attachAiButton(btnId, targetSelector, contextType) {
+      const btnAi = document.getElementById(btnId);
       if (btnAi) {
         btnAi.addEventListener('click', async () => {
           const title = document.querySelector('input[name="title"]').value.trim();
-          if (!title) return alert('Veuillez d\'abord renseigner le titre/sujet de l\'article.');
+          if (!title) return alert("Veuillez d'abord renseigner le titre/sujet.");
           
+          const originalText = btnAi.textContent;
           btnAi.disabled = true;
           btnAi.textContent = '⏳ Génération en cours...';
           try {
-            const { draft } = await api.request('/api/admin/ai/article', { method: 'POST', body: { topic: title } });
-            document.querySelector('textarea[name="body"]').value = draft;
+            const { draft } = await api.request('/api/admin/ai/generate', { 
+              method: 'POST', 
+              body: { topic: title, contextType } 
+            });
+            document.querySelector(targetSelector).value = draft;
           } catch (e) {
             alert('Erreur IA : ' + e.message);
           } finally {
             btnAi.disabled = false;
-            btnAi.textContent = '🤖 Générer avec l\'IA';
+            btnAi.textContent = originalText;
           }
         });
       }
+    }
+
+    if (select.value === 'article') {
+      attachAiButton('btn-ai-article', 'textarea[name="body"]', 'article');
+    }
+    if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {
+      attachAiButton('btn-ai-analyse', 'textarea[name="analyse"]', 'analyse');
+    }
+    if (select.value === 'bilan') {
+      attachAiButton('btn-ai-commentaire', 'textarea[name="body"]', 'commentaire');
+    }
+    if (select.value === 'bulletin') {
+      attachAiButton('btn-ai-note', 'textarea[name="body"]', 'note');
+    }
+    if (select.value === 'kit_reseaux') {
+      attachAiButton('btn-ai-legende', 'textarea[name="body"]', 'legende');
     }
     
     if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {

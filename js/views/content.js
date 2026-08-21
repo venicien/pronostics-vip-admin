@@ -305,7 +305,11 @@ export async function renderContent(root) {
   async function loadPronosticsForSelection() {
     try {
       const data = await api.listContent();
-      allPronostics = data.content.filter(c => c.type === 'pronostic_unique' || c.type === 'pronostic_combine');
+      // On ne garde que les pronostics en attente pour éviter de lier un bilan à un pronostic déjà validé
+      allPronostics = data.content.filter(c => 
+        (c.type === 'pronostic_unique' || c.type === 'pronostic_combine') && 
+        c.result_status === 'en_attente'
+      );
     } catch (e) {
       console.error('Erreur chargement pronostics', e);
       showToast('Erreur lors du chargement des pronostics.');

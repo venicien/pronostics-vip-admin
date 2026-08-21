@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { imageUploadFieldHtml, wireImageUploadField } from '../imageUpload.js';
-import { generatePronosticImage, generateBilanImage, generateBulletinImage, generateVerticalKitImage, generateArticleHybridImage } from '../generator.js';
+import { generatePronosticImage, generateBilanImage, generateBulletinImage, generateVerticalKitImage, generateArticleHybridImage, generatePronoHybridImage } from '../generator.js';
 
 const TEMPLATES = {
   pronostic_unique: 'Pronostic Unique',

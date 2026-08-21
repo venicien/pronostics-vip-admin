@@ -590,3 +590,97 @@ export async function generateVerticalKitImage(payload, apiUploadImage) {
   const url = await apiUploadImage(file);
   return url;
 }
+
+/**
+ * Génère un visuel hybride pour un Article : fond artistique (Pollinations) + texte et marque (Canvas)
+ */
+export async function generateArticleHybridImage(payload, apiUploadImage, backgroundUrl) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Format carré 1024x1024 pour correspondre à Pollinations
+  const W = 1024;
+  const H = 1024;
+  canvas.width = W;
+  canvas.height = H;
+  
+  const accent = '#e2b34a'; // gold
+  
+  // 1. Dessiner l'image de fond générée par Pollinations
+  if (backgroundUrl) {
+    const bgImg = await cpLoadImageSafe(backgroundUrl);
+    if (bgImg) {
+      // Remplir le canvas avec l'image en conservant le ratio (cover)
+      const ratio = Math.max(W / bgImg.width, H / bgImg.height);
+      const dw = bgImg.width * ratio;
+      const dh = bgImg.height * ratio;
+      ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = '#0f111a';
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else {
+    ctx.fillStyle = '#0f111a';
+    ctx.fillRect(0, 0, W, H);
+  }
+  
+  // 2. Ajouter un dégradé sombre en bas pour rendre le texte lisible
+  const gradient = ctx.createLinearGradient(0, H * 0.4, 0, H);
+  gradient.addColorStop(0, 'rgba(15, 17, 26, 0)');
+  gradient.addColorStop(0.6, 'rgba(15, 17, 26, 0.8)');
+  gradient.addColorStop(1, 'rgba(15, 17, 26, 0.95)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, H * 0.4, W, H * 0.6);
+  
+  // 3. Ajouter la marque en haut à gauche (discret mais premium)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  roundedRect(ctx, 30, 30, 320, 60, 30, true, false, 0);
+  ctx.fillStyle = accent;
+  ctx.font = `700 24px 'Space Grotesk', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PRONOSTICS VIP', 190, 60);
+  
+  // 4. Ajouter le titre de l'article en bas
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  
+  // Gérer le retour à la ligne du titre
+  const titleLines = wrapTeamName(ctx, payload.title.toUpperCase(), `900 64px 'Space Grotesk', sans-serif`, W - 100);
+  
+  const titleY = H - 140 - ((titleLines.length - 1) * 70);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 15;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 4;
+  
+  for (let i = 0; i < titleLines.length; i++) {
+    ctx.fillText(titleLines[i], W / 2, titleY + (i * 70));
+  }
+  
+  // Désactiver l'ombre pour la suite
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  
+  // 5. Ajouter un petit séparateur et "LIRE L'ARTICLE"
+  ctx.fillStyle = accent;
+  ctx.fillRect(W / 2 - 40, H - 90, 80, 4);
+  
+  ctx.fillStyle = '#aaaaaa';
+  ctx.font = `600 28px 'Inter', sans-serif`;
+  ctx.fillText('LIRE L\'ARTICLE COMPLET', W / 2, H - 40);
+  
+  // 6. Ajouter une bordure dorée fine tout autour
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, W - 4, H - 4);
+  
+  // Convertir en fichier et uploader
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+  const file = new File([blob], 'article_hybride.jpg', { type: 'image/jpeg' });
+  const url = await apiUploadImage(file);
+  return url;
+}

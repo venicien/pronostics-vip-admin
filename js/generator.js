@@ -482,7 +482,9 @@ export async function generateBulletinImage(payload, apiUploadImage) {
     ctx.font = `700 52px 'Space Grotesk', sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.fillText(`${row.score_home || row.hs || '-'} - ${row.score_away || row.as || '-'}`, scoreCx, cy + 18);
+    const sh = row.score_home ?? row.hs ?? '-';
+    const sa = row.score_away ?? row.as ?? '-';
+    ctx.fillText(`${sh} - ${sa}`, scoreCx, cy + 18);
     ctx.font = `600 18px 'Inter', sans-serif`;
     ctx.fillStyle = accent;
     ctx.fillText((row.selection_label || '').toUpperCase(), scoreCx, cy + 45);

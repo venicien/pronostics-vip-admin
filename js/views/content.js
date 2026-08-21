@@ -88,6 +88,13 @@ function fieldsForTemplate(type, data = {}) {
       <div class="field"><label>Unités gagnées/perdues</label><input type="number" step="0.01" name="result_units" value="${esc(data.result_units)}" placeholder="ex: 1.5 ou -1" /></div>
       
       ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel', currentUrl: data.image_url || '' })}
+      <div class="field">
+        <label>Style Visuel</label>
+        <select name="visual_style">
+          <option value="classic">Classique (Standard)</option>
+          <option value="hybrid">Premium (Hybride IA)</option>
+        </select>
+      </div>
       <div class="field full">
         <label style="display:flex;justify-content:space-between;align-items:center;">
           Analyse
@@ -507,6 +514,12 @@ export async function renderContent(root) {
 
   function refreshFields(data = {}) {
     dynamicFields.innerHTML = fieldsForTemplate(select.value, data);
+    
+    // Restaurer la valeur du select visual_style si existante
+    if ((select.value === 'pronostic_unique' || select.value === 'pronostic_combine') && data.visual_style) {
+      const styleSelect = dynamicFields.querySelector('select[name="visual_style"]');
+      if (styleSelect) styleSelect.value = data.visual_style;
+    }
     dynamicFields.style.display = 'contents';
     wireImageUploadField(dynamicFields, 'image_url');
     
@@ -702,7 +715,13 @@ export async function renderContent(root) {
       if (!payload.image_url) {
         showToast('⏳ Génération du visuel en cours...');
         if (payload.type === 'pronostic_unique' || payload.type === 'pronostic_combine') {
-          payload.image_url = await generatePronosticImage(payload, api.uploadImage);
+          if (payload.visual_style === 'hybrid') {
+            const bgPrompt = `stade de football illuminé la nuit, ambiance électrique, haute qualité, sans texte`;
+            const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bgPrompt)}?model=flux&width=1080&height=1350&nologo=true`;
+            payload.image_url = await generatePronoHybridImage(payload, api.uploadImage, bgUrl);
+          } else {
+            payload.image_url = await generatePronosticImage(payload, api.uploadImage);
+          }
         } else if (payload.type === 'bilan') {
           let linkedProno = null;
           if (payload.linked_pronostic_id) {

@@ -684,3 +684,123 @@ export async function generateArticleHybridImage(payload, apiUploadImage, backgr
   const url = await apiUploadImage(file);
   return url;
 }
+
+/**
+ * Génère un visuel hybride pour les pronostics (Premium) : fond artistique (Pollinations) + composition (Canvas)
+ */
+export async function generatePronoHybridImage(payload, apiUploadImage, backgroundUrl) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Format Instagram Portrait 4:5
+  const W = 1080;
+  const H = 1350;
+  canvas.width = W;
+  canvas.height = H;
+  
+  const accent = '#e2b34a'; // gold
+  
+  // 1. Fond Pollinations
+  if (backgroundUrl) {
+    const bgImg = await cpLoadImageSafe(backgroundUrl);
+    if (bgImg) {
+      const ratio = Math.max(W / bgImg.width, H / bgImg.height);
+      const dw = bgImg.width * ratio;
+      const dh = bgImg.height * ratio;
+      ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = '#0f111a';
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else {
+    ctx.fillStyle = '#0f111a';
+    ctx.fillRect(0, 0, W, H);
+  }
+  
+  // 2. Filtre Glassmorphism global
+  ctx.fillStyle = 'rgba(10, 15, 20, 0.6)';
+  ctx.fillRect(0, 0, W, H);
+  
+  // 3. Header
+  ctx.fillStyle = accent;
+  ctx.font = `800 45px 'Space Grotesk', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PRONOSTICS VIP', W/2, 100);
+  
+  // 4. Cartes de matchs
+  const selections = Array.isArray(payload.selections) && payload.selections.length > 0 
+    ? payload.selections 
+    : [payload];
+  
+  const cardH = 220;
+  const gap = 30;
+  const totalCardsH = selections.length * cardH + (selections.length - 1) * gap;
+  let startY = (H - totalCardsH) / 2 - 50; // Remonté un peu pour la cote en bas
+  
+  for (const sel of selections) {
+    // Fond de carte glassmorphism
+    ctx.save();
+    roundedRect(ctx, 60, startY, W - 120, cardH, 30, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.1)', 2);
+    ctx.clip();
+    
+    // Léger dégradé interne
+    const cardGrad = ctx.createLinearGradient(60, startY, 60, startY + cardH);
+    cardGrad.addColorStop(0, 'rgba(255,255,255,0.08)');
+    cardGrad.addColorStop(1, 'rgba(255,255,255,0.02)');
+    ctx.fillStyle = cardGrad;
+    ctx.fillRect(60, startY, W - 120, cardH);
+    ctx.restore();
+    
+    // Titre du match (Équipe A vs Équipe B)
+    const matchLabel = (sel.match_label || sel.title || 'Match').toUpperCase();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `700 38px 'Space Grotesk', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(matchLabel, W/2, startY + 60);
+    
+    // Date si dispo
+    if (sel.event_date) {
+      const dateText = new Date(sel.event_date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      ctx.fillStyle = '#aaaaaa';
+      ctx.font = `500 24px 'Inter', sans-serif`;
+      ctx.fillText(dateText, W/2, startY + 110);
+    }
+    
+    // Sélection (ex: Victoire PSG)
+    const selLabel = (sel.selection_label || sel.title || '').toUpperCase();
+    if (selLabel) {
+      ctx.fillStyle = accent;
+      ctx.font = `700 32px 'Inter', sans-serif`;
+      ctx.fillText(selLabel, W/2, startY + 165);
+    }
+    
+    startY += cardH + gap;
+  }
+  
+  // 5. Pastille dorée pour la cote totale en bas
+  if (payload.cote) {
+    const coteY = H - 200;
+    
+    ctx.shadowColor = 'rgba(226, 179, 74, 0.4)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 10;
+    
+    roundedRect(ctx, W/2 - 150, coteY - 50, 300, 100, 50, accent, null, 0);
+    
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    
+    ctx.fillStyle = '#000000';
+    ctx.font = `800 48px 'Space Grotesk', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`COTE : ${payload.cote}`, W/2, coteY + 4);
+  }
+  
+  // Convertir en fichier et uploader
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+  const file = new File([blob], 'prono_hybride.jpg', { type: 'image/jpeg' });
+  const url = await apiUploadImage(file);
+  return url;
+}

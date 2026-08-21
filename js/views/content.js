@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { imageUploadFieldHtml, wireImageUploadField } from '../imageUpload.js';
+import { generatePronosticImage, generateBilanImage } from '../generator.js';
 
 const TEMPLATES = {
   pronostic_unique: 'Pronostic Unique',
@@ -439,6 +440,12 @@ export async function renderContent(root) {
       saveSelectionsState();
       payload.selections = currentSelections;
       
+      // Transférer les URLs des logos locaux vers les sélections
+      payload.selections.forEach((sel, i) => {
+        sel.team1_logo_url = payload[`sel_t1_logo_${i}`] || sel.team1_logo_url || null;
+        sel.team2_logo_url = payload[`sel_t2_logo_${i}`] || sel.team2_logo_url || null;
+      });
+
       // Nettoyer le payload des champs de sélection injectés par formData
       Object.keys(payload).forEach(key => {
         if (key.startsWith('sel_t1_logo_') || key.startsWith('sel_t2_logo_')) {
@@ -448,6 +455,23 @@ export async function renderContent(root) {
     }
 
     try {
+      // Génération automatique d'image si le champ image_url est vide
+      if (!payload.image_url) {
+        showToast('⏳ Génération du visuel en cours...');
+        if (payload.type === 'pronostic_unique' || payload.type === 'pronostic_combine') {
+          payload.image_url = await generatePronosticImage(payload, api.uploadImage);
+        } else if (payload.type === 'bilan') {
+          let linkedProno = null;
+          if (payload.linked_pronostic_id) {
+            try {
+              const res = await api.request(`/api/content`);
+              linkedProno = res.content?.find(c => c.id === payload.linked_pronostic_id) || null;
+            } catch (e) {}
+          }
+          payload.image_url = await generateBilanImage(payload, api.uploadImage, linkedProno);
+        }
+      }
+
       if (editingId) {
         await api.updateContent(editingId, payload);
         showToast('✅ Contenu modifié.');

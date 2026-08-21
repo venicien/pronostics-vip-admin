@@ -787,7 +787,10 @@ export async function renderContent(root) {
               .map(
                 (c) => `
               <tr data-id="${c.id}">
-                <td>${TEMPLATES[c.type] || c.type}</td>
+                <td>
+                  ${TEMPLATES[c.type] || c.type}
+                  ${(c.type === 'pronostic_unique' || c.type === 'pronostic_combine') && c.result_status !== 'en_attente' ? '<span class="badge" style="background: var(--surface-light); color: var(--text-muted); font-size: 10px; margin-left: 6px;">Bilanté</span>' : ''}
+                </td>
                 <td>${c.title}</td>
                 <td>${(c.type === 'bilan' || c.type === 'pronostic_unique' || c.type === 'pronostic_combine') ? resultBadgeHtml(c.result_status) : '—'}</td>
                 <td style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">

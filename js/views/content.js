@@ -739,8 +739,8 @@ export async function renderContent(root) {
           // L'article n'a pas d'image locale, on génère un visuel hybride avec Pollinations + Canvas
           try {
             const res = await api.request('/admin/ai/generate', { method: 'POST', body: { topic: payload.title, contextType: 'image_prompt' } });
-            const prompt = res.draft || \`illustration sportive professionnelle, thème : \${payload.title}, haute qualité\`;
-            const bgUrl = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(prompt)}?model=flux&width=1024&height=1024&nologo=true\`;
+            const prompt = res.draft || `illustration sportive professionnelle, thème : ${payload.title}, haute qualité`;
+            const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=1024&height=1024&nologo=true`;
             payload.image_url = await generateArticleHybridImage(payload, api.uploadImage, bgUrl);
           } catch (e) {
             // Fallback si l'IA échoue : fond noir avec le titre

@@ -6,9 +6,11 @@ import { renderBookmakers } from './views/bookmakers.js';
 import { renderWinback } from './views/winback.js';
 import { renderSettings } from './views/settings.js';
 import { renderFaq } from './views/faq.js';
+import { renderPayments } from './views/payments.js';
 
 const routes = {
   content: { label: '📋 Contenu', render: renderContent },
+  payments: { label: '💰 Paiements', render: renderPayments },
   banners: { label: '📢 Bannières', render: renderBanners },
   bookmakers: { label: '🤝 Bookmakers', render: renderBookmakers },
   faq: { label: '❓ FAQ', render: renderFaq },

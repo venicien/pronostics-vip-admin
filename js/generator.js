@@ -517,3 +517,76 @@ export async function generateBulletinImage(payload, apiUploadImage) {
     }, 'image/jpeg', 0.92);
   });
 }
+
+/**
+ * Génère un visuel vertical (9:16) optimisé pour TikTok / Instagram Reels.
+ */
+export async function generateVerticalKitImage(payload, apiUploadImage) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Format TikTok/Reels : 1080x1920
+  const W = 1080, H = 1920;
+  canvas.width = W; canvas.height = H;
+  
+  const bgColor = '#0f111a';
+  const accent = '#e2b34a';
+  const green = '#10b981';
+  
+  // Fond
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0,0,W,H);
+  drawNeonGrid(ctx, W, H, accent);
+  
+  // Titre
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = accent;
+  ctx.font = `800 60px 'Space Grotesk', sans-serif`;
+  ctx.fillText('VIP EXCLUSIF', W/2, 200);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 75px 'Space Grotesk', sans-serif`;
+  wrapText(ctx, payload.title || 'Gros coup à venir !', W/2, 320, W-100, 85);
+  
+  // Si c'est un bilan, on affiche le résultat en gros
+  if (payload.type === 'bilan') {
+    ctx.fillStyle = payload.result_status === 'gagne' ? green : (payload.result_status === 'perdu' ? '#ef4444' : '#6b7280');
+    ctx.font = `900 120px 'Space Grotesk', sans-serif`;
+    ctx.fillText(payload.result_status.toUpperCase(), W/2, H/2 - 100);
+    
+    if (payload.roi_percent) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 80px 'Space Grotesk', sans-serif`;
+      ctx.fillText(`ROI : ${payload.roi_percent}%`, W/2, H/2 + 50);
+    }
+  } else {
+    // Teaser pour pronostic
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `600 50px 'Space Grotesk', sans-serif`;
+    ctx.fillText('ANALYSE DISPONIBLE', W/2, H/2 - 100);
+    
+    ctx.fillStyle = accent;
+    ctx.font = `700 60px 'Space Grotesk', sans-serif`;
+    ctx.fillText('SUR LA MINI APP', W/2, H/2);
+    
+    if (payload.cote) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 80px 'Space Grotesk', sans-serif`;
+      ctx.fillText(`COTE : ${payload.cote}`, W/2, H/2 + 150);
+    }
+  }
+  
+  // Footer CTA
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, H - 250, W, 250);
+  
+  ctx.fillStyle = '#000000';
+  ctx.font = `800 55px 'Space Grotesk', sans-serif`;
+  ctx.fillText('LIEN EN BIO', W/2, H - 125);
+  
+  // Convertir en fichier et uploader
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+  const file = new File([blob], 'kit_vertical.jpg', { type: 'image/jpeg' });
+  const url = await apiUploadImage(file);
+  return url;
+}

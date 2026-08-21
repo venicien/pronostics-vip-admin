@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { imageUploadFieldHtml, wireImageUploadField } from '../imageUpload.js';
-import { generatePronosticImage, generateBilanImage, generateBulletinImage } from '../generator.js';
+import { generatePronosticImage, generateBilanImage, generateBulletinImage, generateVerticalKitImage } from '../generator.js';
 
 const TEMPLATES = {
   pronostic_unique: 'Pronostic Unique',
@@ -153,7 +153,15 @@ function fieldsForTemplate(type, data = {}) {
   }
 
   if (type === 'article') {
-    return common + `<div class="field full"><label>Contenu</label><textarea name="body" style="min-height:160px;">${esc(data.body)}</textarea></div>`;
+    return common + `
+      <div class="field full">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Contenu (Markdown supporté)
+          <button type="button" class="btn-secondary" id="btn-ai-article" style="font-size:12px;padding:4px 8px;">🤖 Générer avec l'IA</button>
+        </label>
+        <textarea name="body" style="min-height:200px;" placeholder="Écrivez votre article ici...">${esc(data.body)}</textarea>
+      </div>
+    `;
   }
 
   // kit_reseaux
@@ -487,6 +495,28 @@ export async function renderContent(root) {
         });
       }
     }
+
+    if (select.value === 'article') {
+      const btnAi = document.getElementById('btn-ai-article');
+      if (btnAi) {
+        btnAi.addEventListener('click', async () => {
+          const title = document.querySelector('input[name="title"]').value.trim();
+          if (!title) return alert('Veuillez d\\'abord renseigner le titre/sujet de l\\'article.');
+          
+          btnAi.disabled = true;
+          btnAi.textContent = '⏳ Génération en cours...';
+          try {
+            const { draft } = await api.request('POST', '/admin/ai/article', { topic: title });
+            document.querySelector('textarea[name="body"]').value = draft;
+          } catch (e) {
+            alert('Erreur IA : ' + e.message);
+          } finally {
+            btnAi.disabled = false;
+            btnAi.textContent = '🤖 Générer avec l\\'IA';
+          }
+        });
+      }
+    }
     
     if (select.value === 'pronostic_unique' || select.value === 'pronostic_combine') {
       currentSelections = data.selections || [];
@@ -639,6 +669,8 @@ export async function renderContent(root) {
           payload.image_url = await generateBilanImage(payload, api.uploadImage, linkedProno);
         } else if (payload.type === 'bulletin') {
           payload.image_url = await generateBulletinImage(payload, api.uploadImage);
+        } else if (payload.type === 'kit_reseaux') {
+          payload.image_url = await generateVerticalKitImage(payload, api.uploadImage);
         }
       }
 

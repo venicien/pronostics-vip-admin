@@ -616,6 +616,7 @@ export async function renderContent(root) {
       payload.event_date = bulletinMatches.map((match) => match.event_date).sort()[0] || null;
       delete payload.bulletin_competition;
       delete payload.bulletin_brand_name;
+      delete payload.bulletin_matches; // Empêcher l'erreur Supabase "Could not find column"
       Object.keys(payload).forEach((key) => {
         if (key.startsWith('bulletin_home_logo_') || key.startsWith('bulletin_away_logo_')) delete payload[key];
       });

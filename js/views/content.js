@@ -304,11 +304,11 @@ export async function renderContent(root) {
 
   async function loadPronosticsForSelection() {
     try {
-      const res = await fetch('/api/admin/content?type=pronostic');
-      const data = await res.json();
+      const data = await api.listContent();
       allPronostics = data.content.filter(c => c.type === 'pronostic_unique' || c.type === 'pronostic_combine');
     } catch (e) {
       console.error('Erreur chargement pronostics', e);
+      showToast('Erreur lors du chargement des pronostics.');
     }
   }
 
@@ -464,7 +464,7 @@ export async function renderContent(root) {
           let linkedProno = null;
           if (payload.linked_pronostic_id) {
             try {
-              const res = await api.request(`/api/content`);
+              const res = await api.listContent();
               linkedProno = res.content?.find(c => c.id === payload.linked_pronostic_id) || null;
             } catch (e) {}
           }

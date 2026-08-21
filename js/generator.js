@@ -341,3 +341,177 @@ export async function generateBilanImage(payload, apiUploadImage, linkedPronoDat
     }, 'image/jpeg', 0.9);
   });
 }
+
+
+/**
+ * Génère le visuel Bulletin en reprenant la composition du fichier de référence.
+ * Les logos locaux déjà téléversés sont prioritaires, puis Wikipédia, puis initiales.
+ * Chaque ligne affiche obligatoirement sa date et son heure lorsqu'elles sont fournies.
+ */
+export async function generateBulletinImage(payload, apiUploadImage) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 1080;
+  const rows = Array.isArray(payload.bulletin_matches) ? payload.bulletin_matches : [];
+  if (!rows.length) throw new Error('Ajoutez au moins un match au Bulletin.');
+
+  const rowH = 190;
+  const headerH = 300;
+  const footerH = 130;
+  const H = headerH + rows.length * rowH + footerH;
+  canvas.width = W;
+  canvas.height = H;
+
+  const accent = '#e2b34a';
+  const bgColor = '#102017';
+  const brandName = (payload.bulletin_brand_name || 'PARADOX RATIO').trim();
+  const competition = (payload.bulletin_competition || '').trim();
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1b3828');
+  grad.addColorStop(1, bgColor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  drawNeonGrid(ctx, W, H, accent);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#eeeeee';
+  ctx.font = `700 50px 'Space Grotesk', sans-serif`;
+  ctx.fillText(brandName.toUpperCase(), W / 2, 88);
+  ctx.fillStyle = accent;
+  ctx.font = `700 62px 'Space Grotesk', sans-serif`;
+  ctx.fillText('RÉSULTATS', W / 2, 164);
+
+  if (competition) {
+    ctx.font = `700 28px 'Inter', sans-serif`;
+    const label = competition.toUpperCase();
+    const tw = ctx.measureText(label).width;
+    roundedRect(ctx, W / 2 - tw / 2 - 26, headerH - 66, tw + 52, 50, 25, null, accent, 2);
+    ctx.fillStyle = '#e6e6e6';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, W / 2, headerH - 32);
+  }
+
+  const pad = 44;
+  const nameA0 = pad + 110;
+  const nameA1 = pad + 340;
+  const logoA = nameA1 + 70;
+  const logoB = W - nameA1 - 70;
+  const nameB0 = W - nameA1;
+  const nameB1 = W - pad - 110;
+  const scoreCx = W / 2;
+
+  function drawInitialsBulletin(cx, cy, box, name) {
+    drawInitials(ctx, cx, cy, box, name);
+  }
+
+  async function resolveLogo(url, name) {
+    if (url) {
+      const local = await cpLoadImageSafe(url);
+      if (local) return local;
+    }
+    return cpWikipediaTeamLogo(name);
+  }
+
+  let y = headerH;
+  for (const row of rows) {
+    const home = (row.home || row.team1_name || 'Équipe A').trim();
+    const away = (row.away || row.team2_name || 'Équipe B').trim();
+    const homeImg = await resolveLogo(row.home_logo_url || row.team1_logo_url, home);
+    const awayImg = await resolveLogo(row.away_logo_url || row.team2_logo_url, away);
+    const won = row.result_status === 'gagne' || row.won === true;
+    const side = row.side === 'away' ? 'away' : 'home';
+    const cardTop = y + 18;
+    const cardBottom = y + rowH - 18;
+    const cy = (cardTop + cardBottom) / 2;
+
+    roundedRect(ctx, pad, cardTop, W - pad * 2, cardBottom - cardTop, 20, 'rgba(11,28,19,0.55)', 'rgba(255,255,255,0.08)', 2);
+
+    const iconCx = side === 'away' ? W - pad - 50 : pad + 50;
+    ctx.beginPath();
+    ctx.arc(iconCx, cy, 32, 0, Math.PI * 2);
+    ctx.fillStyle = won ? '#3ac460' : '#de3e4c';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (won) {
+      ctx.beginPath();
+      ctx.moveTo(iconCx - 15, cy);
+      ctx.lineTo(iconCx - 3, cy + 13);
+      ctx.lineTo(iconCx + 17, cy - 15);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(iconCx - 13, cy - 13);
+      ctx.lineTo(iconCx + 13, cy + 13);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(iconCx - 13, cy + 13);
+      ctx.lineTo(iconCx + 13, cy - 13);
+      ctx.stroke();
+    }
+
+    const dateText = row.event_date
+      ? new Date(row.event_date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : 'Date/heure non renseignée';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = accent;
+    ctx.font = `600 20px 'Inter', sans-serif`;
+    ctx.fillText(dateText, W / 2, cardTop + 32);
+
+    ctx.font = `700 30px 'Inter', sans-serif`;
+    for (const [x0, x1, name, align] of [[nameA0, nameA1, home, 'left'], [nameB0, nameB1, away, 'right']]) {
+      const lines = wrapTeamName(ctx, name, `700 30px 'Inter', sans-serif`, x1 - x0);
+      const lineHeight = 36;
+      const startY = cy - (lines.length * lineHeight) / 2 + lineHeight * 0.75 + 8;
+      ctx.fillStyle = '#e8e8e8';
+      ctx.textAlign = align;
+      const x = align === 'left' ? x0 : x1;
+      lines.forEach((line, index) => ctx.fillText(line, x, startY + index * lineHeight));
+    }
+
+    if (!drawFitImage(ctx, homeImg, logoA, cy, 84)) drawInitialsBulletin(logoA, cy, 84, home);
+    if (!drawFitImage(ctx, awayImg, logoB, cy, 84)) drawInitialsBulletin(logoB, cy, 84, away);
+
+    const boxW = 168;
+    const boxH = 96;
+    roundedRect(ctx, scoreCx - boxW / 2, cy - boxH / 2, boxW, boxH, 14, '#000', null, 0);
+    ctx.font = `700 52px 'Space Grotesk', sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${row.score_home || row.hs || '-'} - ${row.score_away || row.as || '-'}`, scoreCx, cy + 18);
+    ctx.font = `600 18px 'Inter', sans-serif`;
+    ctx.fillStyle = accent;
+    ctx.fillText((row.selection_label || '').toUpperCase(), scoreCx, cy + 45);
+
+    y += rowH;
+  }
+
+  const footerTop = H - footerH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(pad, footerTop + 24);
+  ctx.lineTo(W - pad, footerTop + 24);
+  ctx.stroke();
+  ctx.fillStyle = accent;
+  ctx.font = `700 30px 'Space Grotesk', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${brandName.toUpperCase()} — RÉSULTATS VÉRIFIÉS`, W / 2, footerTop + 84);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) return reject(new Error('Erreur de création du visuel Bulletin'));
+      try {
+        const file = new File([blob], `bulletin_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const data = await apiUploadImage(file);
+        resolve(data.url);
+      } catch (error) {
+        reject(error);
+      }
+    }, 'image/jpeg', 0.92);
+  });
+}

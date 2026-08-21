@@ -1,17 +1,37 @@
 import { api } from '../api.js';
 import { imageUploadFieldHtml, wireImageUploadField } from '../imageUpload.js';
-import { generatePronosticImage, generateBilanImage } from '../generator.js';
+import { generatePronosticImage, generateBilanImage, generateBulletinImage } from '../generator.js';
 
 const TEMPLATES = {
   pronostic_unique: 'Pronostic Unique',
   pronostic_combine: 'Pronostic Combiné',
   bilan: 'Bilan / Résultat',
+  bulletin: 'Bulletin de résultats',
   article: 'Article de fond / Guide',
   kit_reseaux: 'Kit Réseaux Sociaux (TikTok)',
 };
 
 function esc(value) {
   return (value ?? '').toString().replace(/"/g, '&quot;');
+}
+
+function parseBulletinData(data = {}) {
+  if (Array.isArray(data.bulletin_matches)) return data;
+  try {
+    const parsed = JSON.parse(data.body || '{}');
+    if (parsed && Array.isArray(parsed.matches)) {
+      return {
+        ...data,
+        bulletin_competition: parsed.competition || data.bulletin_competition || '',
+        bulletin_brand_name: parsed.brand_name || data.bulletin_brand_name || 'PARADOX RATIO',
+        bulletin_matches: parsed.matches,
+        body: parsed.note || '',
+      };
+    }
+  } catch (error) {
+    // Ancien Bulletin éventuellement stocké comme texte simple.
+  }
+  return { ...data, bulletin_matches: [] };
 }
 
 function fieldsForTemplate(type, data = {}) {
@@ -73,6 +93,26 @@ function fieldsForTemplate(type, data = {}) {
       <div class="field full" style="color:var(--gold);font-size:12px;">
         🔒 L'heure du match servira de verrou automatique. Une fois le match commencé, aucune modification ne sera possible pour garantir l'intégrité de l'historique.
       </div>
+    `
+    );
+  }
+
+  if (type === 'bulletin') {
+    const bulletin = parseBulletinData(data);
+    return (
+      common +
+      `
+      <div class="field"><label>Compétition / journée</label><input type="text" name="bulletin_competition" value="${esc(bulletin.bulletin_competition)}" placeholder="Ex : Ligue des champions" /></div>
+      <div class="field"><label>Nom de marque</label><input type="text" name="bulletin_brand_name" value="${esc(bulletin.bulletin_brand_name || 'PARADOX RATIO')}" placeholder="PARADOX RATIO" /></div>
+      <div class="field full" id="bulletin-matches-container">
+        <label>Matchs du Bulletin</label>
+        <div id="bulletin-matches-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;"></div>
+        <button type="button" class="btn-secondary" id="add-bulletin-match-btn" style="font-size:12px;padding:6px 12px;">+ Ajouter un match</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Les logos locaux sont prioritaires. La date et l'heure sont obligatoires pour chaque match.</div>
+      </div>
+      <div class="field full"><label>Note / légende facultative</label><textarea name="body" placeholder="Contexte ou commentaire du bulletin">${esc(bulletin.body)}</textarea></div>
+      ${imageUploadFieldHtml({ name: 'image_url', label: 'Visuel Bulletin', currentUrl: bulletin.image_url || '' })}
+      <div class="field full" style="color:var(--gold);font-size:12px;">Le visuel reprend la composition du Bulletin de référence : score central, logos, résultat vert/rouge et date/heure de chaque match.</div>
     `
     );
   }
@@ -197,6 +237,7 @@ export async function renderContent(root) {
   let editingId = null; // null = mode création, sinon id du contenu en cours d'édition
 
   let currentSelections = [];
+  let currentBulletinMatches = [];
 
   function renderSelections() {
     const list = document.getElementById('selections-list');
@@ -300,6 +341,85 @@ export async function renderContent(root) {
     });
   }
 
+  function renderBulletinMatches() {
+    const list = document.getElementById('bulletin-matches-list');
+    if (!list) return;
+
+    list.innerHTML = currentBulletinMatches.map((match, i) => {
+      let dateVal = '';
+      if (match.event_date) {
+        const d = new Date(match.event_date);
+        dateVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      }
+      return `
+        <div class="bulletin-match-item" data-index="${i}" style="background:rgba(0,0,0,0.2);border:1px solid var(--border);padding:10px;border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <strong style="font-size:12px;color:var(--gold);">Match ${i + 1}</strong>
+            <button type="button" class="remove-bulletin-match-btn" data-index="${i}" style="background:none;color:var(--red);font-size:12px;">✖ Retirer</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div><label style="font-size:11px;">Compétition</label><input type="text" class="bulletin-comp" value="${esc(match.competition)}" placeholder="Compétition" style="padding:6px;font-size:12px;" /></div>
+            <div><label style="font-size:11px;">Date et heure *</label><input type="datetime-local" class="bulletin-date" value="${dateVal}" required style="padding:6px;font-size:12px;" /></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px;">Équipe domicile</label>
+              <input type="text" class="bulletin-home" value="${esc(match.home || match.team1_name)}" placeholder="Équipe A" required style="padding:6px;font-size:12px;margin-bottom:4px;" />
+              ${imageUploadFieldHtml({ name: 'bulletin_home_logo_' + i, label: 'Logo domicile', currentUrl: match.home_logo_url || match.team1_logo_url || '' })}
+            </div>
+            <div>
+              <label style="font-size:11px;">Équipe extérieure</label>
+              <input type="text" class="bulletin-away" value="${esc(match.away || match.team2_name)}" placeholder="Équipe B" required style="padding:6px;font-size:12px;margin-bottom:4px;" />
+              ${imageUploadFieldHtml({ name: 'bulletin_away_logo_' + i, label: 'Logo extérieur', currentUrl: match.away_logo_url || match.team2_logo_url || '' })}
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+            <div><label style="font-size:11px;">Score dom.</label><input type="number" min="0" class="bulletin-score-home" value="${esc(match.score_home ?? match.hs)}" placeholder="-" style="padding:6px;font-size:12px;" /></div>
+            <div><label style="font-size:11px;">Score ext.</label><input type="number" min="0" class="bulletin-score-away" value="${esc(match.score_away ?? match.as)}" placeholder="-" style="padding:6px;font-size:12px;" /></div>
+            <div><label style="font-size:11px;">Pronostic</label><input type="text" class="bulletin-label" value="${esc(match.selection_label)}" placeholder="1N2, Over 2.5…" style="padding:6px;font-size:12px;" /></div>
+            <div><label style="font-size:11px;">Issue</label><select class="bulletin-status" style="padding:6px;font-size:12px;width:100%;"><option value="gagne" ${match.result_status === 'gagne' ? 'selected' : ''}>Gagné</option><option value="perdu" ${match.result_status === 'perdu' ? 'selected' : ''}>Perdu</option><option value="en_attente" ${match.result_status === 'en_attente' ? 'selected' : ''}>En attente</option></select></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    currentBulletinMatches.forEach((_, i) => {
+      wireImageUploadField(list, `bulletin_home_logo_${i}`);
+      wireImageUploadField(list, `bulletin_away_logo_${i}`);
+    });
+
+    list.querySelectorAll('.remove-bulletin-match-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        saveBulletinState();
+        currentBulletinMatches.splice(Number(e.currentTarget.dataset.index), 1);
+        renderBulletinMatches();
+      });
+    });
+  }
+
+  function saveBulletinState() {
+    const list = document.getElementById('bulletin-matches-list');
+    if (!list) return;
+    currentBulletinMatches = Array.from(list.querySelectorAll('.bulletin-match-item')).map((item) => {
+      const i = item.dataset.index;
+      const date = item.querySelector('.bulletin-date').value;
+      const homeLogo = item.querySelector(`input[name="bulletin_home_logo_${i}"]`);
+      const awayLogo = item.querySelector(`input[name="bulletin_away_logo_${i}"]`);
+      return {
+        competition: item.querySelector('.bulletin-comp').value.trim(),
+        event_date: date ? new Date(date).toISOString() : null,
+        home: item.querySelector('.bulletin-home').value.trim(),
+        away: item.querySelector('.bulletin-away').value.trim(),
+        home_logo_url: homeLogo?.value || null,
+        away_logo_url: awayLogo?.value || null,
+        score_home: item.querySelector('.bulletin-score-home').value === '' ? null : Number(item.querySelector('.bulletin-score-home').value),
+        score_away: item.querySelector('.bulletin-score-away').value === '' ? null : Number(item.querySelector('.bulletin-score-away').value),
+        selection_label: item.querySelector('.bulletin-label').value.trim(),
+        result_status: item.querySelector('.bulletin-status').value,
+      };
+    });
+  }
+
   let allPronostics = [];
 
   async function loadPronosticsForSelection() {
@@ -392,6 +512,22 @@ export async function renderContent(root) {
         });
       }
     }
+
+    if (select.value === 'bulletin') {
+      const bulletin = parseBulletinData(data);
+      currentBulletinMatches = bulletin.bulletin_matches || [];
+      renderBulletinMatches();
+      const addBtn = document.getElementById('add-bulletin-match-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          saveBulletinState();
+          currentBulletinMatches.push({ result_status: 'gagne' });
+          renderBulletinMatches();
+        });
+      }
+    } else {
+      currentBulletinMatches = [];
+    }
   }
 
   function enterEditMode(item) {
@@ -458,6 +594,33 @@ export async function renderContent(root) {
       });
     }
 
+    if (select.value === 'bulletin') {
+      saveBulletinState();
+      if (!currentBulletinMatches.length) throw new Error('Ajoutez au moins un match au Bulletin.');
+      const missingDate = currentBulletinMatches.find((match) => !match.event_date);
+      if (missingDate) throw new Error('La date et l’heure sont obligatoires pour chaque match du Bulletin.');
+
+      const bulletinMatches = currentBulletinMatches.map((match, i) => ({
+        ...match,
+        home_logo_url: payload[`bulletin_home_logo_${i}`] || match.home_logo_url || null,
+        away_logo_url: payload[`bulletin_away_logo_${i}`] || match.away_logo_url || null,
+      }));
+      payload.bulletin_matches = bulletinMatches;
+      payload.body = JSON.stringify({
+        version: 1,
+        competition: payload.bulletin_competition || '',
+        brand_name: payload.bulletin_brand_name || 'PARADOX RATIO',
+        note: payload.body || '',
+        matches: bulletinMatches,
+      });
+      payload.event_date = bulletinMatches.map((match) => match.event_date).sort()[0] || null;
+      delete payload.bulletin_competition;
+      delete payload.bulletin_brand_name;
+      Object.keys(payload).forEach((key) => {
+        if (key.startsWith('bulletin_home_logo_') || key.startsWith('bulletin_away_logo_')) delete payload[key];
+      });
+    }
+
     try {
       // Génération automatique d'image si le champ image_url est vide
       if (!payload.image_url) {
@@ -473,6 +636,8 @@ export async function renderContent(root) {
             } catch (e) {}
           }
           payload.image_url = await generateBilanImage(payload, api.uploadImage, linkedProno);
+        } else if (payload.type === 'bulletin') {
+          payload.image_url = await generateBulletinImage(payload, api.uploadImage);
         }
       }
 

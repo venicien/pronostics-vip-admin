@@ -710,45 +710,51 @@ export async function renderContent(root) {
       });
     }
 
-    try {
-      // Génération automatique d'image si le champ image_url est vide
+        try {
+      // Génération automatique d'image si le champ image_url est vide.
+      // Cette étape ne doit jamais empêcher la sauvegarde d'un brouillon.
       if (!payload.image_url) {
         showToast('⏳ Génération du visuel en cours...');
-        if (payload.type === 'pronostic_unique' || payload.type === 'pronostic_combine') {
-          if (payload.visual_style === 'hybrid') {
-            const bgPrompt = `stade de football illuminé la nuit, ambiance électrique, haute qualité, sans texte`;
-            const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bgPrompt)}?model=flux&width=1080&height=1350&nologo=true`;
-            payload.image_url = await generatePronoHybridImage(payload, api.uploadImage, bgUrl);
-          } else {
-            payload.image_url = await generatePronosticImage(payload, api.uploadImage);
-          }
-        } else if (payload.type === 'bilan') {
-          let linkedProno = null;
-          if (payload.linked_pronostic_id) {
+        try {
+          if (payload.type === 'pronostic_unique' || payload.type === 'pronostic_combine') {
+            if (payload.visual_style === 'hybrid') {
+              const bgPrompt = `stade de football illuminé la nuit, ambiance électrique, haute qualité, sans texte`;
+              const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bgPrompt)}?model=flux&width=1080&height=1350&nologo=true`;
+              payload.image_url = await generatePronoHybridImage(payload, api.uploadImage, bgUrl);
+            } else {
+              payload.image_url = await generatePronosticImage(payload, api.uploadImage);
+            }
+          } else if (payload.type === 'bilan') {
+            let linkedProno = null;
+            if (payload.linked_pronostic_id) {
+              try {
+                const res = await api.listContent();
+                linkedProno = res.content?.find(c => c.id === payload.linked_pronostic_id) || null;
+              } catch (e) {}
+            }
+            payload.image_url = await generateBilanImage(payload, api.uploadImage, linkedProno);
+          } else if (payload.type === 'bulletin') {
+            payload.image_url = await generateBulletinImage(payload, api.uploadImage);
+          } else if (payload.type === 'kit_reseaux') {
+            payload.image_url = await generateVerticalKitImage(payload, api.uploadImage);
+          } else if (payload.type === 'article') {
+            // L'article n'a pas d'image locale : fond Pollinations + Canvas,
+            // puis fallback Canvas local si le service externe échoue.
             try {
-              const res = await api.listContent();
-              linkedProno = res.content?.find(c => c.id === payload.linked_pronostic_id) || null;
-            } catch (e) {}
+              const res = await api.request('/api/admin/ai/generate', { method: 'POST', body: { topic: payload.title, contextType: 'image_prompt' } });
+              const prompt = res.draft || `illustration sportive professionnelle, thème : ${payload.title}, haute qualité`;
+              const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=1024&height=1024&nologo=true`;
+              payload.image_url = await generateArticleHybridImage(payload, api.uploadImage, bgUrl);
+            } catch (e) {
+              payload.image_url = await generateArticleHybridImage(payload, api.uploadImage, null);
+            }
           }
-          payload.image_url = await generateBilanImage(payload, api.uploadImage, linkedProno);
-        } else if (payload.type === 'bulletin') {
-          payload.image_url = await generateBulletinImage(payload, api.uploadImage);
-        } else if (payload.type === 'kit_reseaux') {
-          payload.image_url = await generateVerticalKitImage(payload, api.uploadImage);
-        } else if (payload.type === 'article') {
-          // L'article n'a pas d'image locale, on génère un visuel hybride avec Pollinations + Canvas
-          try {
-            const res = await api.request('/admin/ai/generate', { method: 'POST', body: { topic: payload.title, contextType: 'image_prompt' } });
-            const prompt = res.draft || `illustration sportive professionnelle, thème : ${payload.title}, haute qualité`;
-            const bgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=1024&height=1024&nologo=true`;
-            payload.image_url = await generateArticleHybridImage(payload, api.uploadImage, bgUrl);
-          } catch (e) {
-            // Fallback si l'IA échoue : fond noir avec le titre
-            payload.image_url = await generateArticleHybridImage(payload, api.uploadImage, null);
-          }
+        } catch (imageError) {
+          console.warn('[content] Visuel indisponible, brouillon sauvegardé sans image:', imageError);
+          payload.image_url = null;
+          showToast('⚠️ Visuel indisponible : brouillon sauvegardé sans image.');
         }
       }
-
       if (editingId) {
         await api.updateContent(editingId, payload);
         showToast('✅ Contenu modifié.');

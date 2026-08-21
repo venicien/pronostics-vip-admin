@@ -8,9 +8,19 @@ const CP_LOGO_CACHE = {};
 export function cpLoadImageSafe(src){
   return new Promise(resolve=>{
     const img = new Image();
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      img.onload = null;
+      img.onerror = null;
+      resolve(value);
+    };
+    const timeoutId = setTimeout(() => finish(null), 12000);
     img.crossOrigin = 'anonymous';
-    img.onload = ()=> resolve(img);
-    img.onerror = ()=> resolve(null);
+    img.onload = () => finish(img);
+    img.onerror = () => finish(null);
     img.src = src;
   });
 }
@@ -587,8 +597,10 @@ export async function generateVerticalKitImage(payload, apiUploadImage) {
   // Convertir en fichier et uploader
   const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
   const file = new File([blob], 'kit_vertical.jpg', { type: 'image/jpeg' });
-  const url = await apiUploadImage(file);
-  return url;
+  const uploaded = await apiUploadImage(file);
+  const imageUrl = typeof uploaded === 'string' ? uploaded : uploaded?.url;
+  if (!imageUrl) throw new Error('Réponse upload image invalide');
+  return imageUrl;
 }
 
 /**
@@ -681,8 +693,10 @@ export async function generateArticleHybridImage(payload, apiUploadImage, backgr
   // Convertir en fichier et uploader
   const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
   const file = new File([blob], 'article_hybride.jpg', { type: 'image/jpeg' });
-  const url = await apiUploadImage(file);
-  return url;
+  const uploaded = await apiUploadImage(file);
+  const imageUrl = typeof uploaded === 'string' ? uploaded : uploaded?.url;
+  if (!imageUrl) throw new Error('Réponse upload image invalide');
+  return imageUrl;
 }
 
 /**
@@ -801,6 +815,8 @@ export async function generatePronoHybridImage(payload, apiUploadImage, backgrou
   // Convertir en fichier et uploader
   const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
   const file = new File([blob], 'prono_hybride.jpg', { type: 'image/jpeg' });
-  const url = await apiUploadImage(file);
-  return url;
+  const uploaded = await apiUploadImage(file);
+  const imageUrl = typeof uploaded === 'string' ? uploaded : uploaded?.url;
+  if (!imageUrl) throw new Error('Réponse upload image invalide');
+  return imageUrl;
 }

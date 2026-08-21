@@ -501,7 +501,7 @@ export async function renderContent(root) {
       if (btnAi) {
         btnAi.addEventListener('click', async () => {
           const title = document.querySelector('input[name="title"]').value.trim();
-          if (!title) return alert('Veuillez d\\'abord renseigner le titre/sujet de l\\'article.');
+          if (!title) return alert('Veuillez d\'abord renseigner le titre/sujet de l\'article.');
           
           btnAi.disabled = true;
           btnAi.textContent = '⏳ Génération en cours...';
@@ -512,7 +512,7 @@ export async function renderContent(root) {
             alert('Erreur IA : ' + e.message);
           } finally {
             btnAi.disabled = false;
-            btnAi.textContent = '🤖 Générer avec l\\'IA';
+            btnAi.textContent = '🤖 Générer avec l\'IA';
           }
         });
       }

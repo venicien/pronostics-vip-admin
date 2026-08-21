@@ -52,7 +52,7 @@ export async function renderPayments(container) {
 
       listDiv.querySelectorAll('.btn-validate').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          if (!confirm('Êtes-vous sûr de vouloir valider ce paiement et activer l\\'accès VIP pour ce client ?')) return;
+          if (!confirm('Êtes-vous sûr de vouloir valider ce paiement et activer l\'accès VIP pour ce client ?')) return;
           const id = e.target.dataset.id;
           e.target.disabled = true;
           try {

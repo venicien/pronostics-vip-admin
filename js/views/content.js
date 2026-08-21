@@ -506,7 +506,7 @@ export async function renderContent(root) {
           btnAi.disabled = true;
           btnAi.textContent = '⏳ Génération en cours...';
           try {
-            const { draft } = await api.request('POST', '/admin/ai/article', { topic: title });
+            const { draft } = await api.request('/api/admin/ai/article', { method: 'POST', body: { topic: title } });
             document.querySelector('textarea[name="body"]').value = draft;
           } catch (e) {
             alert('Erreur IA : ' + e.message);

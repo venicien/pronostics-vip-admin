@@ -14,7 +14,7 @@ export async function renderPayments(container) {
 
   async function loadPayments() {
     try {
-      const data = await api.request('GET', '/admin/payments/pending');
+      const data = await api.request('/api/admin/payments/pending', { method: 'GET' });
       const payments = data.payments || [];
       
       if (!payments.length) {
@@ -56,7 +56,7 @@ export async function renderPayments(container) {
           const id = e.target.dataset.id;
           e.target.disabled = true;
           try {
-            await api.request('POST', `/admin/payments/${id}/validate`);
+            await api.request(`/api/admin/payments/${id}/validate`, { method: 'POST' });
             loadPayments();
           } catch (err) {
             alert('Erreur : ' + err.message);
@@ -71,7 +71,7 @@ export async function renderPayments(container) {
           const id = e.target.dataset.id;
           e.target.disabled = true;
           try {
-            await api.request('POST', `/admin/payments/${id}/reject`);
+            await api.request(`/api/admin/payments/${id}/reject`, { method: 'POST' });
             loadPayments();
           } catch (err) {
             alert('Erreur : ' + err.message);

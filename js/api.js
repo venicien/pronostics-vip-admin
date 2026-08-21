@@ -43,6 +43,7 @@ async function validateAdminKey(key) {
 }
 
 export const api = {
+  request,
   validateAdminKey,
   listContent: () => request('/api/admin/content'),
   createContent: (payload) => request('/api/admin/content', { method: 'POST', body: payload }),

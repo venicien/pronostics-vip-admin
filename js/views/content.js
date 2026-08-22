@@ -486,15 +486,15 @@ export async function renderContent(root) {
         <div style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px;">
           ${allPronostics.map(p => {
             const isBilante = p.result_status && p.result_status !== 'en_attente';
-            const badge = isBilante ? \`<span style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;">Déjà bilanté</span>\` : '';
+            const badge = isBilante ? '<span style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;">Déjà bilanté</span>' : '';
             const opacity = isBilante ? '0.6' : '1';
-            return \`
-            <div class="prono-select-item" data-id="\${p.id}" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; opacity: \${opacity};">
-              <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">\${new Date(p.created_at).toLocaleDateString()} - \${p.type === 'pronostic_combine' ? 'Combiné' : 'Simple'}</div>
-              <div style="font-weight: bold;">\${p.title} \${badge}</div>
-              <div style="font-size: 12px; color: var(--text-muted);">\${p.match_label || ''}</div>
+            return `
+            <div class="prono-select-item" data-id="${p.id}" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; opacity: ${opacity};">
+              <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">${new Date(p.created_at).toLocaleDateString()} - ${p.type === 'pronostic_combine' ? 'Combiné' : 'Simple'}</div>
+              <div style="font-weight: bold;">${p.title} ${badge}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">${p.match_label || ''}</div>
             </div>
-            \`;
+            `;
           }).join('')}
         </div>
         <button class="btn-secondary" style="margin-top: 15px;" id="close-prono-selector">Annuler</button>

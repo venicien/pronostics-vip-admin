@@ -33,7 +33,7 @@ async function request(path, { method = 'GET', body } = {}) {
  */
 async function validateAdminKey(key) {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+    const res = await fetch(`${API_BASE_URL}/api/admin/content`, {
       headers: { 'X-Admin-Key': key },
     });
     return res.ok;
